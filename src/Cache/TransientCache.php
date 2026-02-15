@@ -41,7 +41,12 @@ class TransientCache {
 	}
 
 	public function set_llms_txt( string $content ): void {
-		set_transient( 'airc_llms_txt', $content, 12 * HOUR_IN_SECONDS );
+		$settings = Plugin::get_settings();
+		$ttl      = (int) ( $settings['cache_ttl'] ?? 86400 );
+
+		if ( $ttl > 0 ) {
+			set_transient( 'airc_llms_txt', $content, $ttl );
+		}
 	}
 
 	/**

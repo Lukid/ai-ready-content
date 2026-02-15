@@ -102,7 +102,7 @@
         "PHPCS/lint passes without errors"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "File: src/Endpoint/LlmsTxtEndpoint.php. From improvement plan item 3.4."
     },
     {
