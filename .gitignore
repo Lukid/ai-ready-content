@@ -9,3 +9,11 @@ node_modules/
 .vscode/
 *.swp
 *.swo
+
+# Ralph agent / working files
+CLAUDE.md
+prd.json
+progress.txt
+IMPROVEMENT-PLAN.md
+tasks/
+scripts/
