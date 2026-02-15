@@ -88,6 +88,7 @@ final class Plugin {
 			'llms_txt_post_limit'        => 100,
 			'frontmatter_meta_keys'      => '',
 			'image_handling'             => 'keep',
+			'show_protected_teaser'      => false,
 		];
 	}
 

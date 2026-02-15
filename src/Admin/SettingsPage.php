@@ -89,6 +89,14 @@ class SettingsPage {
 		);
 
 		add_settings_field(
+			'show_protected_teaser',
+			__( 'Protected posts', 'ai-ready-content' ),
+			[ $this, 'render_protected_teaser_field' ],
+			self::MENU_SLUG,
+			'airc_general'
+		);
+
+		add_settings_field(
 			'image_handling',
 			__( 'Image handling', 'ai-ready-content' ),
 			[ $this, 'render_image_handling_field' ],
@@ -185,6 +193,22 @@ class SettingsPage {
 		);
 	}
 
+	public function render_protected_teaser_field(): void {
+		$settings = Plugin::get_settings();
+		$value    = ! empty( $settings['show_protected_teaser'] );
+
+		printf(
+			'<label><input type="checkbox" name="%s[show_protected_teaser]" value="1" %s /> %s</label>',
+			esc_attr( self::OPTION_NAME ),
+			checked( $value, true, false ),
+			esc_html__( 'Show teaser for protected posts', 'ai-ready-content' )
+		);
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'When enabled, password-protected posts return frontmatter and a placeholder message instead of 404.', 'ai-ready-content' )
+		);
+	}
+
 	public function render_image_handling_field(): void {
 		$settings = Plugin::get_settings();
 		$value    = $settings['image_handling'];
@@ -258,6 +282,9 @@ class SettingsPage {
 		$sanitized['llms_txt_post_limit'] = isset( $input['llms_txt_post_limit'] )
 			? min( absint( $input['llms_txt_post_limit'] ), 500 )
 			: $defaults['llms_txt_post_limit'];
+
+		// Protected teaser.
+		$sanitized['show_protected_teaser'] = ! empty( $input['show_protected_teaser'] );
 
 		// Image handling.
 		$valid_modes                  = [ 'keep', 'alt_only', 'remove' ];

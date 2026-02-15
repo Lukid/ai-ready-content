@@ -209,3 +209,21 @@
   - `wp_json_encode()` is the WordPress wrapper for `json_encode()` — use it instead of raw `json_encode()` for consistency
   - Sitemap cache invalidation must be added to all the same hooks as llms.txt (save_post, delete_post, terms change) since the sitemap reflects the same post data
 ---
+
+## 2026-02-15 - US-013
+- Implemented teaser markdown response for password-protected posts
+- Files changed: `src/Endpoint/PostEndpoint.php`, `src/Admin/SettingsPage.php`, `src/Plugin.php`, `prd.json`
+- Changes:
+  - Added `show_protected_teaser` setting (default: `false`) in `Plugin::get_defaults()`
+  - Added checkbox toggle "Show teaser for protected posts" in `SettingsPage` with `render_protected_teaser_field()` method
+  - Added sanitization for the new boolean setting in `sanitize_settings()`
+  - Modified `PostEndpoint::handle()` to inline the eligibility check (status + post type) and add a separate password-protection branch
+  - Added `serve_protected_teaser()` private method: returns frontmatter (title, date, post_type, protected=true) + body "Contenuto protetto da password"
+  - Added `escape_yaml_value()` private method (mirrors `FrontmatterGenerator::escape_yaml()`) for YAML serialization in the teaser
+  - Teaser response returns HTTP 200, not cached (generated on each request), applies `airc_frontmatter_fields` filter
+- **Learnings for future iterations:**
+  - `PostTypeHelper::is_post_eligible()` rejects password-protected posts — for features that need to include them, inline the checks (status + post type) in the endpoint instead of modifying the shared helper
+  - Teaser responses are not cached because they're simple and don't go through the full converter pipeline
+  - The `airc_frontmatter_fields` filter can inject array values, so teaser YAML serialization must handle arrays (not just strings and bools)
+  - When a new boolean setting is a "feature toggle", it can be a standalone checkbox field rather than being added to the grouped feature toggles fieldset — this keeps the grouping semantically focused on core features vs. content behavior options
+---

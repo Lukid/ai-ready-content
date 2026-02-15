@@ -194,7 +194,7 @@
         "PHPCS/lint passes without errors"
       ],
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "notes": "Files: src/Endpoint/PostEndpoint.php, src/Admin/SettingsPage.php. From improvement plan item 3.8."
     }
   ]
