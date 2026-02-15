@@ -32,22 +32,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 	jQuery( function( $ ) {
 		$( '#airc-flush-cache' ).on( 'click', function() {
 			var $btn = $( this );
-			$btn.prop( 'disabled', true );
+			var $result = $( '#airc-flush-result' );
+			$btn.prop( 'disabled', true ).attr( 'aria-busy', 'true' );
+			$result.text( '<?php echo esc_js( __( 'Flushing cache…', 'ai-ready-content' ) ); ?>' );
 			$.post( ajaxurl, {
 				action: 'airc_flush_cache',
 				nonce: '<?php echo esc_js( wp_create_nonce( 'airc_flush_cache' ) ); ?>'
 			}, function( response ) {
-				$( '#airc-flush-result' )
+				$result
 					.text( response.data.message )
 					.fadeIn()
 					.delay( 3000 )
 					.fadeOut();
-				$btn.prop( 'disabled', false );
+				$btn.prop( 'disabled', false ).removeAttr( 'aria-busy' );
 			} ).fail( function() {
-				$( '#airc-flush-result' )
+				$result
 					.text( '<?php echo esc_js( __( 'Error clearing cache.', 'ai-ready-content' ) ); ?>' )
 					.fadeIn();
-				$btn.prop( 'disabled', false );
+				$btn.prop( 'disabled', false ).removeAttr( 'aria-busy' );
 			} );
 		} );
 	} );
@@ -58,8 +60,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<h2><?php esc_html_e( 'Quick Links', 'ai-ready-content' ); ?></h2>
 	<ul>
 		<li>
-			<a href="<?php echo esc_url( home_url( '/llms.txt' ) ); ?>" target="_blank">
+			<a href="<?php echo esc_url( home_url( '/llms.txt' ) ); ?>" target="_blank" rel="noopener noreferrer">
 				<?php esc_html_e( 'View llms.txt', 'ai-ready-content' ); ?> &rarr;
+				<span class="screen-reader-text"><?php esc_html_e( '(opens in a new window)', 'ai-ready-content' ); ?></span>
 			</a>
 		</li>
 	</ul>
