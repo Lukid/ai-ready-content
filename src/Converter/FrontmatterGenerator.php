@@ -9,6 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use AIRC\Plugin;
 use WP_Post;
 
 class FrontmatterGenerator {
@@ -37,6 +38,8 @@ class FrontmatterGenerator {
 			$fields['tags'] = $tags;
 		}
 
+		$fields = $this->add_custom_meta_fields( $fields, $post );
+
 		/**
 		 * Filters the frontmatter fields before YAML serialization.
 		 *
@@ -46,6 +49,32 @@ class FrontmatterGenerator {
 		$fields = apply_filters( 'airc_frontmatter_fields', $fields, $post );
 
 		return $this->build_yaml( $fields );
+	}
+
+	/**
+	 * Add configured custom meta fields to the frontmatter.
+	 */
+	private function add_custom_meta_fields( array $fields, WP_Post $post ): array {
+		$settings  = Plugin::get_settings();
+		$meta_keys = $settings['frontmatter_meta_keys'];
+
+		if ( empty( $meta_keys ) ) {
+			return $fields;
+		}
+
+		$keys = array_filter( array_map( 'trim', explode( "\n", $meta_keys ) ) );
+
+		foreach ( $keys as $key ) {
+			$value = get_post_meta( $post->ID, $key, true );
+
+			if ( '' === $value || false === $value ) {
+				continue;
+			}
+
+			$fields[ $key ] = $value;
+		}
+
+		return $fields;
 	}
 
 	private function get_excerpt( WP_Post $post ): string {

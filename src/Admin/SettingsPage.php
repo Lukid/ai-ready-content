@@ -87,6 +87,14 @@ class SettingsPage {
 			self::MENU_SLUG,
 			'airc_general'
 		);
+
+		add_settings_field(
+			'frontmatter_meta_keys',
+			__( 'Meta keys for frontmatter', 'ai-ready-content' ),
+			[ $this, 'render_frontmatter_meta_keys_field' ],
+			self::MENU_SLUG,
+			'airc_general'
+		);
 	}
 
 	public function render_page(): void {
@@ -169,6 +177,21 @@ class SettingsPage {
 		);
 	}
 
+	public function render_frontmatter_meta_keys_field(): void {
+		$settings = Plugin::get_settings();
+		$value    = $settings['frontmatter_meta_keys'];
+
+		printf(
+			'<textarea name="%s[frontmatter_meta_keys]" rows="4" cols="50" class="large-text code" aria-describedby="airc-meta-keys-desc">%s</textarea>',
+			esc_attr( self::OPTION_NAME ),
+			esc_textarea( $value )
+		);
+		printf(
+			'<p id="airc-meta-keys-desc" class="description">%s</p>',
+			esc_html__( 'One meta key per line. Values from these custom fields will be included in the YAML frontmatter.', 'ai-ready-content' )
+		);
+	}
+
 	/**
 	 * Sanitize and validate all settings input.
 	 */
@@ -199,6 +222,20 @@ class SettingsPage {
 		$sanitized['llms_txt_post_limit'] = isset( $input['llms_txt_post_limit'] )
 			? min( absint( $input['llms_txt_post_limit'] ), 500 )
 			: $defaults['llms_txt_post_limit'];
+
+		// Frontmatter meta keys: one key per line, trimmed, valid meta key characters only.
+		$sanitized['frontmatter_meta_keys'] = '';
+		if ( ! empty( $input['frontmatter_meta_keys'] ) ) {
+			$lines = explode( "\n", $input['frontmatter_meta_keys'] );
+			$valid = [];
+			foreach ( $lines as $line ) {
+				$key = sanitize_key( trim( $line ) );
+				if ( '' !== $key ) {
+					$valid[] = $key;
+				}
+			}
+			$sanitized['frontmatter_meta_keys'] = implode( "\n", $valid );
+		}
 
 		// Flush cache on settings save.
 		$this->cache->flush_all();

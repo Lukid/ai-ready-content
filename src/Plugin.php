@@ -79,6 +79,7 @@ final class Plugin {
 			'enable_robots_txt'          => true,
 			'cache_ttl'                  => 86400,
 			'llms_txt_post_limit'        => 100,
+			'frontmatter_meta_keys'      => '',
 		];
 	}
 
