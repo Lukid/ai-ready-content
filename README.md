@@ -12,8 +12,9 @@ When you publish a post at `https://example.com/hello-world/`, the plugin automa
 
 The plugin also generates:
 
-- `/llms.txt` -- a machine-readable index of all your content, following the [llms.txt specification](https://llmstxt.org/)
-- `/airc-sitemap.json` -- a JSON sitemap for programmatic discovery of all markdown endpoints
+- `/llms.txt` -- a curated index of your most relevant content, following the [llms.txt specification](https://llmstxt.org/)
+- `/llms-full.txt` -- a comprehensive index of all published content, organized by post type
+- `/airc-sitemap.json` -- a structured JSON sitemap for programmatic discovery of all markdown endpoints
 
 All of this works out of the box with zero configuration. The settings page lets you fine-tune behavior for advanced use cases.
 
@@ -73,7 +74,7 @@ Clients can also request markdown by sending an `Accept: text/markdown` header t
 
 ### llms.txt
 
-The `/llms.txt` endpoint generates a plain text index of all published content, organized by post type. Each entry links to the corresponding `.md` endpoint and includes a short excerpt.
+The `/llms.txt` endpoint generates a curated index following the [llmstxt.org specification](https://llmstxt.org/). Content is split into a main section with the most relevant posts and an **Optional** section with additional entries. Sticky posts are prioritized for the `post` type. When enabled, top categories and tags (by post count) are included as separate sections.
 
 ```
 # My Site
@@ -88,9 +89,45 @@ The `/llms.txt` endpoint generates a plain text index of all published content, 
 ## Pages
 
 - [About](https://example.com/about.md): About this site...
+
+## Categories
+
+- [WordPress](https://example.com/category/wordpress/): 15 posts
+
+## Optional
+
+- [Older Post](https://example.com/older-post.md): Supplementary content...
+
+---
+
+See also: [Full content index](https://example.com/llms-full.txt)
 ```
 
-The endpoint respects the `llms_txt_post_limit` setting (default 100, max 500) and can be filtered per post type via the `airc_llms_txt_post_query_args` filter.
+The curated and optional limits are configurable (default 10 each, max 50). Categories/tags link to their archive pages (plain URLs, not `.md`). Posts whose permalink resolves to the site root (front page, blog page) are automatically excluded.
+
+### llms-full.txt
+
+The `/llms-full.txt` endpoint provides a comprehensive listing of all published content, organized by post type. Unlike `llms.txt`, it has no curated/optional split and no taxonomy sections -- it simply lists everything up to the configured limit.
+
+```
+# My Site — Full Index
+
+> Site description
+
+> This is the comprehensive content index. For a curated summary, see [llms.txt](https://example.com/llms.txt).
+
+## Posts
+
+- [Hello World](https://example.com/hello-world.md): A brief introduction...
+- [Another Post](https://example.com/another-post.md): More content here...
+- ...all published posts up to the limit...
+
+## Pages
+
+- [About](https://example.com/about.md): About this site...
+```
+
+Requires `llms.txt` to be enabled. The per-type post limit defaults to 100 (max 500).
 
 ### JSON sitemap
 
@@ -122,6 +159,60 @@ When enabled, the plugin:
 
 Both features can be toggled independently in settings.
 
+## API endpoints for RAG / AI agents
+
+The plugin exposes all content through simple HTTP GET requests. No authentication, no REST API registration, no API keys. Every endpoint is a plain URL that returns cacheable content.
+
+### Endpoint summary
+
+| Endpoint | Content-Type | Purpose |
+|----------|-------------|---------|
+| `/{slug}.md` | `text/markdown` | Single post/page as YAML frontmatter + markdown |
+| `/llms.txt` | `text/plain` | Curated content index (llmstxt.org spec) |
+| `/llms-full.txt` | `text/plain` | Comprehensive content index |
+| `/airc-sitemap.json` | `application/json` | Structured sitemap with all `.md` URLs and dates |
+
+All endpoints return `X-Robots-Tag: noindex` and `Content-Security-Policy: default-src 'none'`.
+
+### Typical RAG ingestion flow
+
+**1. Discover content**
+
+```bash
+curl https://example.com/airc-sitemap.json
+```
+
+Returns a JSON array of all available `.md` URLs with `date_published` and `date_modified` timestamps. Use `date_modified` for incremental updates.
+
+**2. Fetch individual documents**
+
+```bash
+curl https://example.com/hello-world.md
+```
+
+Returns YAML frontmatter (title, date, author, categories, tags, custom fields) followed by clean markdown content. The frontmatter provides structured metadata for chunking and filtering.
+
+**3. Content negotiation (alternative)**
+
+```bash
+curl -H "Accept: text/markdown" https://example.com/hello-world/
+```
+
+Same response as the `.md` URL. Useful when you already have the canonical URL and want the markdown version without URL manipulation.
+
+**4. Browse the index**
+
+```bash
+curl https://example.com/llms.txt        # curated highlights
+curl https://example.com/llms-full.txt    # everything
+```
+
+Plain text indexes with markdown links. Useful for LLM context stuffing or as a starting point for selective crawling.
+
+### Response caching
+
+All endpoints are cached via WordPress transients (default TTL: 24h). Cache is automatically invalidated when content changes. The `Cache-Control: public, max-age=3600` header is set on `.md` and sitemap responses. For bulk ingestion, use the WP-CLI `wp airc generate` command to pre-warm the cache.
+
 ## Settings
 
 The settings page is at **Settings > AI-Ready Content** in the WordPress admin.
@@ -136,16 +227,25 @@ Choose which post types get markdown endpoints. All public post types (except at
 |---------|---------|-------------|
 | Content negotiation | On | Serve markdown when client sends `Accept: text/markdown` |
 | llms.txt | On | Enable the `/llms.txt` endpoint |
+| llms-full.txt | On | Enable the `/llms-full.txt` endpoint (requires llms.txt) |
 | Alternate links | On | Output `<link rel="alternate">` in HTML head |
 | robots.txt | On | Add `Llms-txt` directive to robots.txt |
 | Show teaser for protected posts | Off | Return metadata for password-protected posts instead of 404 |
+
+### llms.txt / llms-full.txt
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Curated limit | 10 | Posts per type in the main llms.txt sections (1-50) |
+| Optional limit | 10 | Posts per type in the Optional section (1-50) |
+| Show taxonomies | On | Include top categories/tags in llms.txt |
+| Full index post limit | 100 | Posts per type in llms-full.txt (1-500) |
 
 ### Cache
 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Cache TTL | 24 hours | How long to cache generated markdown (0 to disable) |
-| Post limit for llms.txt | 100 | Maximum posts per type in the llms.txt index (1-500) |
 
 The cache uses WordPress transients and is automatically invalidated when a post is saved, deleted, changes status, or has its categories/tags modified.
 
@@ -312,7 +412,7 @@ add_filter( 'airc_response_headers', function ( $headers, $post ) {
 }, 10, 2 );
 ```
 
-### llms.txt
+### llms.txt / llms-full.txt
 
 **`airc_llms_txt_output`** `(string $output)`
 
@@ -330,6 +430,14 @@ add_filter( 'airc_llms_txt_post_query_args', function ( $args, $post_type ) {
     return $args;
 }, 10, 2 );
 ```
+
+**`airc_llms_full_txt_output`** `(string $output)`
+
+Filter the complete llms-full.txt content before serving.
+
+**`airc_llms_full_txt_post_query_args`** `(array $args, string $post_type)`
+
+Same as above, for the llms-full.txt endpoint.
 
 ## Security
 
@@ -369,6 +477,7 @@ src/
   Endpoint/
     PostEndpoint.php           # Serves individual .md requests
     LlmsTxtEndpoint.php        # Serves /llms.txt
+    LlmsFullTxtEndpoint.php    # Serves /llms-full.txt
     SitemapEndpoint.php        # Serves /airc-sitemap.json
   Helpers/
     PostTypeHelper.php         # Post type eligibility checks
