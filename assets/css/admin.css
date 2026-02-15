@@ -1,0 +1,10 @@
+.airc-settings .form-table th {
+	width: 200px;
+}
+
+.airc-settings #airc-flush-result {
+	display: none;
+	margin-left: 10px;
+	color: #00a32a;
+	font-weight: 600;
+}

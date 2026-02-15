@@ -1,0 +1,19 @@
+{
+    "name": "lucabaroncini/ai-ready-content",
+    "description": "WordPress plugin that generates markdown versions of posts/pages for LLM and AI agent consumption",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.0",
+        "league/html-to-markdown": "^5.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "AIRC\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}
