@@ -34,7 +34,9 @@ class ContentNegotiator {
 			return;
 		}
 
-		$accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+		$accept = isset( $_SERVER['HTTP_ACCEPT'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ACCEPT'] ) )
+			: '';
 
 		if ( false === stripos( $accept, 'text/markdown' ) ) {
 			return;

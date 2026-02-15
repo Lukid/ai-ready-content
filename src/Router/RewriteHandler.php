@@ -37,7 +37,9 @@ class RewriteHandler {
 	 * Intercept requests ending in .md and resolve them to posts.
 	 */
 	public function intercept_md_requests( \WP $wp ): void {
-		$request_uri = $_SERVER['REQUEST_URI'] ?? '';
+		$request_uri = isset( $_SERVER['REQUEST_URI'] )
+			? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+			: '';
 		$path        = wp_parse_url( $request_uri, PHP_URL_PATH );
 
 		if ( empty( $path ) || ! str_ends_with( $path, '.md' ) ) {

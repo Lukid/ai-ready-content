@@ -93,6 +93,16 @@ class PostEndpoint {
 		$headers = apply_filters( 'airc_response_headers', $headers, $post );
 
 		foreach ( $headers as $name => $value ) {
+			// Validate header name: only alphanumeric and hyphens allowed.
+			if ( ! preg_match( '/^[a-zA-Z0-9\-]+$/', $name ) ) {
+				continue;
+			}
+
+			// Validate header value: no CR or LF (prevents header injection).
+			if ( preg_match( '/[\r\n]/', $value ) ) {
+				continue;
+			}
+
 			header( $name . ': ' . $value );
 		}
 
