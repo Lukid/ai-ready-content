@@ -89,6 +89,14 @@ class SettingsPage {
 		);
 
 		add_settings_field(
+			'image_handling',
+			__( 'Image handling', 'ai-ready-content' ),
+			[ $this, 'render_image_handling_field' ],
+			self::MENU_SLUG,
+			'airc_general'
+		);
+
+		add_settings_field(
 			'frontmatter_meta_keys',
 			__( 'Meta keys for frontmatter', 'ai-ready-content' ),
 			[ $this, 'render_frontmatter_meta_keys_field' ],
@@ -177,6 +185,34 @@ class SettingsPage {
 		);
 	}
 
+	public function render_image_handling_field(): void {
+		$settings = Plugin::get_settings();
+		$value    = $settings['image_handling'];
+		$options  = [
+			'keep'     => __( 'Keep with alt text', 'ai-ready-content' ),
+			'alt_only' => __( 'Alt text only', 'ai-ready-content' ),
+			'remove'   => __( 'Remove', 'ai-ready-content' ),
+		];
+
+		printf(
+			'<select name="%s[image_handling]" aria-describedby="airc-image-handling-desc">',
+			esc_attr( self::OPTION_NAME )
+		);
+		foreach ( $options as $key => $label ) {
+			printf(
+				'<option value="%s" %s>%s</option>',
+				esc_attr( $key ),
+				selected( $value, $key, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</select>';
+		printf(
+			'<p id="airc-image-handling-desc" class="description">%s</p>',
+			esc_html__( 'How images are handled in the markdown output.', 'ai-ready-content' )
+		);
+	}
+
 	public function render_frontmatter_meta_keys_field(): void {
 		$settings = Plugin::get_settings();
 		$value    = $settings['frontmatter_meta_keys'];
@@ -222,6 +258,12 @@ class SettingsPage {
 		$sanitized['llms_txt_post_limit'] = isset( $input['llms_txt_post_limit'] )
 			? min( absint( $input['llms_txt_post_limit'] ), 500 )
 			: $defaults['llms_txt_post_limit'];
+
+		// Image handling.
+		$valid_modes                  = [ 'keep', 'alt_only', 'remove' ];
+		$sanitized['image_handling'] = isset( $input['image_handling'] ) && in_array( $input['image_handling'], $valid_modes, true )
+			? $input['image_handling']
+			: $defaults['image_handling'];
 
 		// Frontmatter meta keys: one key per line, trimmed, valid meta key characters only.
 		$sanitized['frontmatter_meta_keys'] = '';

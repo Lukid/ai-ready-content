@@ -9,6 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use AIRC\Plugin;
 use WP_Post;
 
 class ContentPreparer {
@@ -43,6 +44,7 @@ class ContentPreparer {
 		}
 
 		$content = $this->clean_html( $content );
+		$content = $this->process_images( $content );
 
 		self::$is_converting = false;
 
@@ -66,6 +68,75 @@ class ContentPreparer {
 
 		// Remove self-closing / opening shortcodes: [tag ...].
 		$content = preg_replace( '/\[\w+\b[^\]]*\]/', '', $content );
+
+		return $content;
+	}
+
+	/**
+	 * Process images according to the image_handling setting.
+	 *
+	 * Modes: 'keep' (no changes), 'alt_only' (replace with alt text), 'remove' (strip images).
+	 * In all modes, <figcaption> text is preserved.
+	 */
+	private function process_images( string $content ): string {
+		$settings = Plugin::get_settings();
+		$mode     = $settings['image_handling'];
+
+		if ( 'keep' === $mode ) {
+			return $content;
+		}
+
+		// Process <figure> blocks first: extract figcaption, handle contained <img>.
+		$content = preg_replace_callback(
+			'/<figure\b[^>]*>(.*?)<\/figure>/si',
+			function ( $matches ) use ( $mode ) {
+				$inner = $matches[1];
+
+				// Extract figcaption text if present.
+				$caption = '';
+				if ( preg_match( '/<figcaption\b[^>]*>(.*?)<\/figcaption>/si', $inner, $cap_match ) ) {
+					$caption = trim( wp_strip_all_tags( $cap_match[1] ) );
+				}
+
+				// Process the <img> inside the figure.
+				$alt = '';
+				if ( preg_match( '/<img\b[^>]*\balt=["\']([^"\']*)["\'][^>]*>/i', $inner, $img_match ) ) {
+					$alt = trim( $img_match[1] );
+				}
+
+				$parts = [];
+
+				if ( 'alt_only' === $mode && '' !== $alt ) {
+					$parts[] = '(' . $alt . ')';
+				}
+
+				if ( '' !== $caption ) {
+					$parts[] = $caption;
+				}
+
+				return implode( ' ', $parts );
+			},
+			$content
+		);
+
+		// Process standalone <img> tags (not inside <figure>).
+		if ( 'alt_only' === $mode ) {
+			$content = preg_replace_callback(
+				'/<img\b[^>]*>/i',
+				function ( $matches ) {
+					if ( preg_match( '/\balt=["\']([^"\']*)["\']/', $matches[0], $alt_match ) ) {
+						$alt = trim( $alt_match[1] );
+						if ( '' !== $alt ) {
+							return '(' . $alt . ')';
+						}
+					}
+					return '';
+				},
+				$content
+			);
+		} elseif ( 'remove' === $mode ) {
+			$content = preg_replace( '/<img\b[^>]*>/i', '', $content );
+		}
 
 		return $content;
 	}

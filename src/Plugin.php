@@ -80,6 +80,7 @@ final class Plugin {
 			'cache_ttl'                  => 86400,
 			'llms_txt_post_limit'        => 100,
 			'frontmatter_meta_keys'      => '',
+			'image_handling'             => 'keep',
 		];
 	}
 
