@@ -63,8 +63,8 @@ class LlmsTxtEndpoint {
 	 */
 	private function generate(): string {
 		$settings       = Plugin::get_settings();
-		$site_name      = get_bloginfo( 'name' );
-		$description    = get_bloginfo( 'description' );
+		$site_name      = html_entity_decode( get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8' );
+		$description    = html_entity_decode( get_bloginfo( 'description' ), ENT_QUOTES, 'UTF-8' );
 		$curated_limit  = (int) ( $settings['llms_txt_curated_limit'] ?? 10 );
 		$optional_limit = (int) ( $settings['llms_txt_optional_limit'] ?? 10 );
 		$show_taxes     = ! empty( $settings['llms_txt_show_taxonomies'] );
@@ -79,6 +79,16 @@ class LlmsTxtEndpoint {
 
 		$enabled_types  = $this->helper->get_enabled_post_types();
 		$optional_lines = [];
+
+		$exclude_ids   = [];
+		$front_page_id = (int) get_option( 'page_on_front' );
+		if ( $front_page_id > 0 ) {
+			$exclude_ids[] = $front_page_id;
+		}
+		$posts_page_id = (int) get_option( 'page_for_posts' );
+		if ( $posts_page_id > 0 ) {
+			$exclude_ids[] = $posts_page_id;
+		}
 
 		foreach ( $enabled_types as $post_type ) {
 			$type_obj = get_post_type_object( $post_type );
@@ -97,6 +107,10 @@ class LlmsTxtEndpoint {
 				'order'          => 'DESC',
 				'has_password'   => false,
 			];
+
+			if ( ! empty( $exclude_ids ) ) {
+				$query_args['post__not_in'] = $exclude_ids;
+			}
 
 			/**
 			 * Filters the WP_Query args used to build llms.txt sections.
@@ -120,11 +134,17 @@ class LlmsTxtEndpoint {
 			$lines[] = '';
 
 			foreach ( $curated_posts as $post ) {
-				$lines[] = $this->format_entry( $post );
+				$entry = $this->format_entry( $post );
+				if ( null !== $entry ) {
+					$lines[] = $entry;
+				}
 			}
 
 			foreach ( $optional_posts as $post ) {
-				$optional_lines[] = $this->format_entry( $post );
+				$entry = $this->format_entry( $post );
+				if ( null !== $entry ) {
+					$optional_lines[] = $entry;
+				}
 			}
 		}
 
@@ -200,8 +220,15 @@ class LlmsTxtEndpoint {
 	/**
 	 * Format a single post entry for llms.txt.
 	 */
-	private function format_entry( WP_Post $post ): string {
-		$url     = rtrim( get_permalink( $post ), '/' ) . '.md';
+	private function format_entry( WP_Post $post ): ?string {
+		$permalink = get_permalink( $post );
+
+		// Skip posts whose permalink is the site root (no valid .md URL).
+		if ( untrailingslashit( $permalink ) === untrailingslashit( home_url() ) ) {
+			return null;
+		}
+
+		$url     = rtrim( $permalink, '/' ) . '.md';
 		$title   = $this->escape_markdown( $post->post_title );
 		$excerpt = wp_strip_all_tags( $post->post_excerpt );
 

@@ -62,8 +62,8 @@ class LlmsFullTxtEndpoint {
 	 */
 	private function generate(): string {
 		$settings    = Plugin::get_settings();
-		$site_name   = get_bloginfo( 'name' );
-		$description = get_bloginfo( 'description' );
+		$site_name   = html_entity_decode( get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8' );
+		$description = html_entity_decode( get_bloginfo( 'description' ), ENT_QUOTES, 'UTF-8' );
 		$post_limit  = (int) ( $settings['llms_full_txt_post_limit'] ?? $settings['llms_txt_post_limit'] ?? 100 );
 
 		$lines   = [];
@@ -78,6 +78,16 @@ class LlmsFullTxtEndpoint {
 		$lines[] = '> This is the comprehensive content index. For a curated summary, see [llms.txt](' . home_url( '/llms.txt' ) . ').';
 
 		$enabled_types = $this->helper->get_enabled_post_types();
+
+		$exclude_ids   = [];
+		$front_page_id = (int) get_option( 'page_on_front' );
+		if ( $front_page_id > 0 ) {
+			$exclude_ids[] = $front_page_id;
+		}
+		$posts_page_id = (int) get_option( 'page_for_posts' );
+		if ( $posts_page_id > 0 ) {
+			$exclude_ids[] = $posts_page_id;
+		}
 
 		foreach ( $enabled_types as $post_type ) {
 			$type_obj = get_post_type_object( $post_type );
@@ -94,6 +104,10 @@ class LlmsFullTxtEndpoint {
 				'order'          => 'DESC',
 				'has_password'   => false,
 			];
+
+			if ( ! empty( $exclude_ids ) ) {
+				$query_args['post__not_in'] = $exclude_ids;
+			}
 
 			/**
 			 * Filters the WP_Query args used to build llms-full.txt sections.
@@ -114,7 +128,14 @@ class LlmsFullTxtEndpoint {
 			$lines[] = '';
 
 			foreach ( $posts as $post ) {
-				$url     = rtrim( get_permalink( $post ), '/' ) . '.md';
+				$permalink = get_permalink( $post );
+
+				// Skip posts whose permalink is the site root (no valid .md URL).
+				if ( untrailingslashit( $permalink ) === untrailingslashit( home_url() ) ) {
+					continue;
+				}
+
+				$url     = rtrim( $permalink, '/' ) . '.md';
 				$title   = $post->post_title;
 				$excerpt = wp_strip_all_tags( $post->post_excerpt );
 

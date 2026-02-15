@@ -73,9 +73,16 @@ class SitemapEndpoint {
 			);
 
 			foreach ( $posts as $post ) {
+				$permalink = get_permalink( $post );
+
+				// Skip posts whose permalink is the site root (no valid .md URL).
+				if ( untrailingslashit( $permalink ) === untrailingslashit( home_url() ) ) {
+					continue;
+				}
+
 				$entries[] = [
 					'title'         => $post->post_title,
-					'url'           => rtrim( get_permalink( $post ), '/' ) . '.md',
+					'url'           => rtrim( $permalink, '/' ) . '.md',
 					'post_type'     => $post_type,
 					'date_published' => get_the_date( 'c', $post ),
 					'date_modified' => get_the_modified_date( 'c', $post ),
