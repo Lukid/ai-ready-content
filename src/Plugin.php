@@ -9,6 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use AIRC\Admin\PreviewMetaBox;
 use AIRC\Admin\SettingsPage;
 use AIRC\Cache\TransientCache;
 use AIRC\Converter\ContentPreparer;
@@ -54,6 +55,7 @@ final class Plugin {
 
 		if ( is_admin() ) {
 			new SettingsPage( $helper, $cache );
+			new PreviewMetaBox( $helper, $cache, $preparer, $converter, $frontmatter );
 		}
 	}
 
