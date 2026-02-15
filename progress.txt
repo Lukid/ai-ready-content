@@ -12,6 +12,10 @@
 - Meta box JS is enqueued via `wp_localize_script()` for config/i18n, enqueued only on `post.php` / `post-new.php` for enabled post types
 - Markdown generation can be reused from converter components: `$preparer->prepare()` → `$converter->convert()` → `$frontmatter->generate()`, same pipeline as PostEndpoint
 - Gutenberg scripts use `enqueue_block_editor_assets` hook with WP script deps (`wp-plugins`, `wp-edit-post`, etc.); localize via `wp_localize_script()`
+- New settings fields: add default in `Plugin::get_defaults()`, register field in `SettingsPage::register_settings()`, create `render_*_field()` method, add sanitization in `sanitize_settings()`
+- Image/HTML element processing should happen in `ContentPreparer` (HTML level) before markdown conversion, not after — regex on markdown output is fragile
+- WP-CLI commands: guard with `defined( 'WP_CLI' ) && WP_CLI`, register via `WP_CLI::add_command()` with class instance, use phpdoc `## OPTIONS`/`## EXAMPLES` for help text
+- Rate limiting AJAX: use `get_transient( 'airc_flush_cooldown' )` check before action, `set_transient( ..., 1, 10 )` after — return HTTP 429 during cooldown
 
 ## 2026-02-15 - US-001
 - Implemented accessibility improvements for admin settings form
@@ -114,4 +118,71 @@
 - **Learnings for future iterations:**
   - `TransientCache` methods should always follow the same pattern: read settings, check TTL > 0 before setting transient — keeps behavior consistent across all cache operations
   - When cache_ttl=0, `get_*` methods return null (no transient exists), so callers always regenerate — no special handling needed in endpoint classes
+---
+
+## 2026-02-15 - US-008
+- Implemented custom fields support in YAML frontmatter
+- Files changed: `src/Converter/FrontmatterGenerator.php`, `src/Admin/SettingsPage.php`, `src/Plugin.php`
+- Changes:
+  - Added `frontmatter_meta_keys` default (empty string) in `Plugin::get_defaults()`
+  - Added textarea field in settings page for specifying meta keys (one per line) with `aria-describedby` description
+  - Added `sanitize_key()` per-line sanitization in `sanitize_settings()` — trims whitespace, filters empty lines, validates meta key characters
+  - Added `add_custom_meta_fields()` private method in `FrontmatterGenerator` that reads settings, iterates configured keys, and adds non-empty values to frontmatter
+  - Custom fields are inserted before the `airc_frontmatter_fields` filter so the filter can still modify/remove them
+- **Learnings for future iterations:**
+  - `sanitize_key()` is the appropriate WP function for meta key sanitization — it lowercases and strips non-alphanumeric/dash/underscore chars
+  - `get_post_meta()` returns `''` for non-existent keys (when `$single=true`), so checking `'' === $value` handles both non-existent and empty meta cleanly
+  - Custom meta fields are added to `$fields` before `apply_filters( 'airc_frontmatter_fields' )` to allow the filter to override or remove them
+---
+
+## 2026-02-15 - US-009
+- Implemented image handling control for markdown output with three modes: keep, alt text only, remove
+- Files changed: `src/Converter/ContentPreparer.php`, `src/Admin/SettingsPage.php`, `src/Plugin.php`
+- Changes:
+  - Added `image_handling` default (`'keep'`) in `Plugin::get_defaults()`
+  - Added `<select>` field in settings with three options: "Keep with alt text", "Alt text only", "Remove"
+  - Added `sanitize_settings()` validation against allowed values (`keep`, `alt_only`, `remove`)
+  - Added `process_images()` method in `ContentPreparer` that runs after `clean_html()` and before `airc_prepared_html` filter
+  - `<figure>` with `<figcaption>` is processed first — caption text preserved in all modes
+  - In `alt_only` mode: images replaced with `(alt text)`, figcaption text preserved alongside
+  - In `remove` mode: images stripped, figcaption text preserved
+  - In `keep` mode: early return, no processing (current behavior unchanged)
+- **Learnings for future iterations:**
+  - Image processing must happen at the HTML level (in `ContentPreparer`), not after markdown conversion, because the converter turns `<img>` to `![alt](url)` and regex on markdown is fragile
+  - Process `<figure>` blocks first before standalone `<img>` tags to avoid double-processing images inside figures
+  - `clean_html()` strips CSS classes but keeps structural tags like `<figure>` and `<figcaption>` — this is important for image processing to work correctly after cleanup
+  - Select field sanitization pattern: define `$valid_modes` array and use `in_array( ..., true )` for strict comparison
+---
+
+## 2026-02-15 - US-010
+- Implemented WP-CLI commands for cache management and markdown generation
+- Files changed: `src/CLI/Commands.php` (new), `src/Plugin.php`
+- Changes:
+  - Created `Commands` class with three subcommands: `flush`, `generate`, `status`
+  - `wp airc flush`: clears all cache, supports `--post_id=<id>` for single post and `--post_type=<type>` for type-specific flush
+  - `wp airc generate`: pre-generates markdown for all enabled posts, supports `--post_type=<type>` filter and `--force` to regenerate cached entries
+  - `wp airc status`: shows enabled post types, published post count, cache entries count, total cache size, and cache TTL
+  - Registered via `WP_CLI::add_command( 'airc', ... )` in `Plugin::init_components()`, guarded by `defined( 'WP_CLI' ) && WP_CLI`
+  - Reuses existing converter pipeline (ContentPreparer → MarkdownConverter → FrontmatterGenerator) and `airc_markdown_output` filter
+- **Learnings for future iterations:**
+  - WP-CLI commands are registered with `WP_CLI::add_command()` passing a class instance — each public method becomes a subcommand
+  - Guard with `defined( 'WP_CLI' ) && WP_CLI` — the constant may not be defined at all in non-CLI contexts
+  - Cache size query: use `LENGTH(option_value)` on `_transient_airc_md_*` options; use `COALESCE(..., 0)` to handle empty result
+  - `size_format()` and `human_time_diff()` are built-in WP functions useful for CLI output formatting
+  - WP-CLI phpdoc `## OPTIONS` and `## EXAMPLES` blocks in method docblocks are parsed by WP-CLI to generate help text
+---
+
+## 2026-02-15 - US-011
+- Implemented endpoint hardening with rate limiting on cache flush and CSP headers on markdown endpoints
+- Files changed: `src/Admin/SettingsPage.php`, `src/Admin/PreviewMetaBox.php`, `src/Endpoint/PostEndpoint.php`, `src/Endpoint/LlmsTxtEndpoint.php`
+- Changes:
+  - Added 10-second transient cooldown (`airc_flush_cooldown`) to `SettingsPage::ajax_flush_cache()` — returns 429 JSON error during cooldown
+  - Added same cooldown to `PreviewMetaBox::ajax_invalidate_post_cache()` — shares the same transient for consistent rate limiting
+  - Added `Content-Security-Policy: default-src 'none'` header to `PostEndpoint` default headers array (subject to `airc_response_headers` filter)
+  - Added `Content-Security-Policy: default-src 'none'` header to `LlmsTxtEndpoint` (direct `header()` call, matching existing pattern)
+- **Learnings for future iterations:**
+  - Rate limiting via transient is simple and effective for AJAX endpoints — `set_transient()` with short TTL acts as a cooldown timer
+  - Both flush endpoints (settings page global flush and meta box per-post flush) share the same cooldown transient to prevent abuse across either path
+  - CSP `default-src 'none'` is the strictest policy — appropriate for non-HTML endpoints (markdown, plain text) since no scripts/styles/images should load
+  - PostEndpoint CSP goes in the `$headers` array (filterable via `airc_response_headers`), while LlmsTxtEndpoint uses direct `header()` calls — different patterns because LlmsTxtEndpoint doesn't use the filter system for its headers
 ---

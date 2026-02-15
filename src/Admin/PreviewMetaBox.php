@@ -222,7 +222,13 @@ class PreviewMetaBox {
 			wp_send_json_error( [ 'message' => __( 'Unauthorized.', 'ai-ready-content' ) ], 403 );
 		}
 
+		// Rate limiting: 10-second cooldown between flush requests.
+		if ( get_transient( 'airc_flush_cooldown' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Please wait before flushing again.', 'ai-ready-content' ) ], 429 );
+		}
+
 		delete_transient( 'airc_md_' . $post_id );
+		set_transient( 'airc_flush_cooldown', 1, 10 );
 
 		wp_send_json_success( [ 'message' => __( 'Cache cleared.', 'ai-ready-content' ) ] );
 	}

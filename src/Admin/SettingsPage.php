@@ -308,7 +308,13 @@ class SettingsPage {
 			wp_send_json_error( [ 'message' => __( 'Unauthorized', 'ai-ready-content' ) ], 403 );
 		}
 
+		// Rate limiting: 10-second cooldown between flush requests.
+		if ( get_transient( 'airc_flush_cooldown' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Please wait before flushing again.', 'ai-ready-content' ) ], 429 );
+		}
+
 		$this->cache->flush_all();
+		set_transient( 'airc_flush_cooldown', 1, 10 );
 
 		wp_send_json_success( [ 'message' => __( 'Cache cleared successfully.', 'ai-ready-content' ) ] );
 	}

@@ -77,11 +77,12 @@ class PostEndpoint {
 		}
 
 		$headers = [
-			'Content-Type'           => 'text/markdown; charset=utf-8',
-			'X-Robots-Tag'           => 'noindex',
-			'X-Content-Type-Options' => 'nosniff',
-			'Last-Modified'          => gmdate( 'D, d M Y H:i:s', strtotime( $post->post_modified_gmt ) ) . ' GMT',
-			'Cache-Control'          => 'public, max-age=3600',
+			'Content-Type'            => 'text/markdown; charset=utf-8',
+			'X-Robots-Tag'            => 'noindex',
+			'X-Content-Type-Options'  => 'nosniff',
+			'Content-Security-Policy' => "default-src 'none'",
+			'Last-Modified'           => gmdate( 'D, d M Y H:i:s', strtotime( $post->post_modified_gmt ) ) . ' GMT',
+			'Cache-Control'           => 'public, max-age=3600',
 		];
 
 		/**
