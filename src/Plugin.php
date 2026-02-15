@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 use AIRC\Admin\PreviewMetaBox;
 use AIRC\Admin\SettingsPage;
 use AIRC\Cache\TransientCache;
+use AIRC\CLI\Commands;
 use AIRC\Converter\ContentPreparer;
 use AIRC\Converter\FrontmatterGenerator;
 use AIRC\Converter\MarkdownConverter;
@@ -56,6 +57,10 @@ final class Plugin {
 		if ( is_admin() ) {
 			new SettingsPage( $helper, $cache );
 			new PreviewMetaBox( $helper, $cache, $preparer, $converter, $frontmatter );
+		}
+
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			\WP_CLI::add_command( 'airc', new Commands( $helper, $cache, $preparer, $converter, $frontmatter ) );
 		}
 	}
 
