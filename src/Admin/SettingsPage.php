@@ -81,14 +81,6 @@ class SettingsPage {
 		);
 
 		add_settings_field(
-			'llms_txt_post_limit',
-			__( 'llms.txt Post Limit', 'ai-ready-content' ),
-			[ $this, 'render_post_limit_field' ],
-			self::MENU_SLUG,
-			'airc_general'
-		);
-
-		add_settings_field(
 			'show_protected_teaser',
 			__( 'Protected posts', 'ai-ready-content' ),
 			[ $this, 'render_protected_teaser_field' ],
@@ -110,6 +102,46 @@ class SettingsPage {
 			[ $this, 'render_frontmatter_meta_keys_field' ],
 			self::MENU_SLUG,
 			'airc_general'
+		);
+
+		// llms.txt Settings section.
+		add_settings_section(
+			'airc_llms_txt',
+			__( 'llms.txt Settings', 'ai-ready-content' ),
+			'__return_null',
+			self::MENU_SLUG
+		);
+
+		add_settings_field(
+			'llms_txt_curated_limit',
+			__( 'llms.txt curated limit', 'ai-ready-content' ),
+			[ $this, 'render_curated_limit_field' ],
+			self::MENU_SLUG,
+			'airc_llms_txt'
+		);
+
+		add_settings_field(
+			'llms_txt_optional_limit',
+			__( 'llms.txt optional limit', 'ai-ready-content' ),
+			[ $this, 'render_optional_limit_field' ],
+			self::MENU_SLUG,
+			'airc_llms_txt'
+		);
+
+		add_settings_field(
+			'llms_txt_show_taxonomies',
+			__( 'Taxonomy sections', 'ai-ready-content' ),
+			[ $this, 'render_taxonomy_toggle_field' ],
+			self::MENU_SLUG,
+			'airc_llms_txt'
+		);
+
+		add_settings_field(
+			'llms_full_txt_post_limit',
+			__( 'llms-full.txt post limit', 'ai-ready-content' ),
+			[ $this, 'render_full_post_limit_field' ],
+			self::MENU_SLUG,
+			'airc_llms_txt'
 		);
 	}
 
@@ -144,6 +176,7 @@ class SettingsPage {
 		$toggles  = [
 			'enable_content_negotiation' => __( 'Content Negotiation', 'ai-ready-content' ),
 			'enable_llms_txt'            => __( 'llms.txt endpoint', 'ai-ready-content' ),
+			'enable_llms_full_txt'       => __( 'llms-full.txt endpoint', 'ai-ready-content' ),
 			'enable_alternate_links'     => __( 'Alternate link headers', 'ai-ready-content' ),
 			'enable_robots_txt'          => __( 'Robots.txt integration', 'ai-ready-content' ),
 		];
@@ -178,18 +211,60 @@ class SettingsPage {
 		);
 	}
 
-	public function render_post_limit_field(): void {
+	public function render_curated_limit_field(): void {
 		$settings = Plugin::get_settings();
-		$value    = (int) $settings['llms_txt_post_limit'];
+		$value    = (int) ( $settings['llms_txt_curated_limit'] ?? 10 );
 
 		printf(
-			'<input type="number" name="%s[llms_txt_post_limit]" value="%s" min="1" max="500" step="1" class="small-text" aria-describedby="airc-post-limit-desc" />',
+			'<input type="number" name="%s[llms_txt_curated_limit]" value="%s" min="1" max="50" step="1" class="small-text" aria-describedby="airc-curated-limit-desc" />',
 			esc_attr( self::OPTION_NAME ),
 			esc_attr( (string) $value )
 		);
 		printf(
-			'<p id="airc-post-limit-desc" class="description">%s</p>',
-			esc_html__( 'posts per type', 'ai-ready-content' )
+			'<p id="airc-curated-limit-desc" class="description">%s</p>',
+			esc_html__( 'Posts per type in the curated llms.txt (recommended: 5-20)', 'ai-ready-content' )
+		);
+	}
+
+	public function render_optional_limit_field(): void {
+		$settings = Plugin::get_settings();
+		$value    = (int) ( $settings['llms_txt_optional_limit'] ?? 10 );
+
+		printf(
+			'<input type="number" name="%s[llms_txt_optional_limit]" value="%s" min="0" max="50" step="1" class="small-text" aria-describedby="airc-optional-limit-desc" />',
+			esc_attr( self::OPTION_NAME ),
+			esc_attr( (string) $value )
+		);
+		printf(
+			'<p id="airc-optional-limit-desc" class="description">%s</p>',
+			esc_html__( 'Additional posts per type in the ## Optional section (0 = no optional section)', 'ai-ready-content' )
+		);
+	}
+
+	public function render_taxonomy_toggle_field(): void {
+		$settings = Plugin::get_settings();
+		$value    = ! empty( $settings['llms_txt_show_taxonomies'] );
+
+		printf(
+			'<label><input type="checkbox" name="%s[llms_txt_show_taxonomies]" value="1" %s /> %s</label>',
+			esc_attr( self::OPTION_NAME ),
+			checked( $value, true, false ),
+			esc_html__( 'Include top categories and tags in llms.txt', 'ai-ready-content' )
+		);
+	}
+
+	public function render_full_post_limit_field(): void {
+		$settings = Plugin::get_settings();
+		$value    = (int) ( $settings['llms_full_txt_post_limit'] ?? $settings['llms_txt_post_limit'] ?? 100 );
+
+		printf(
+			'<input type="number" name="%s[llms_full_txt_post_limit]" value="%s" min="1" max="500" step="1" class="small-text" aria-describedby="airc-full-limit-desc" />',
+			esc_attr( self::OPTION_NAME ),
+			esc_attr( (string) $value )
+		);
+		printf(
+			'<p id="airc-full-limit-desc" class="description">%s</p>',
+			esc_html__( 'Posts per type in llms-full.txt (comprehensive index)', 'ai-ready-content' )
 		);
 	}
 
@@ -271,6 +346,7 @@ class SettingsPage {
 		// Checkboxes.
 		$sanitized['enable_content_negotiation'] = ! empty( $input['enable_content_negotiation'] );
 		$sanitized['enable_llms_txt']            = ! empty( $input['enable_llms_txt'] );
+		$sanitized['enable_llms_full_txt']       = ! empty( $input['enable_llms_full_txt'] );
 		$sanitized['enable_alternate_links']     = ! empty( $input['enable_alternate_links'] );
 		$sanitized['enable_robots_txt']          = ! empty( $input['enable_robots_txt'] );
 
@@ -278,10 +354,26 @@ class SettingsPage {
 		$hours                  = isset( $input['cache_ttl'] ) ? absint( $input['cache_ttl'] ) : 24;
 		$sanitized['cache_ttl'] = min( $hours, 168 ) * 3600;
 
-		// Post limit.
-		$sanitized['llms_txt_post_limit'] = isset( $input['llms_txt_post_limit'] )
-			? min( absint( $input['llms_txt_post_limit'] ), 500 )
-			: $defaults['llms_txt_post_limit'];
+		// llms.txt curated limit (1-50).
+		$sanitized['llms_txt_curated_limit'] = isset( $input['llms_txt_curated_limit'] )
+			? min( max( absint( $input['llms_txt_curated_limit'] ), 1 ), 50 )
+			: $defaults['llms_txt_curated_limit'];
+
+		// llms.txt optional limit (0-50).
+		$sanitized['llms_txt_optional_limit'] = isset( $input['llms_txt_optional_limit'] )
+			? min( absint( $input['llms_txt_optional_limit'] ), 50 )
+			: $defaults['llms_txt_optional_limit'];
+
+		// Taxonomy toggle.
+		$sanitized['llms_txt_show_taxonomies'] = ! empty( $input['llms_txt_show_taxonomies'] );
+
+		// llms-full.txt post limit (1-500).
+		$sanitized['llms_full_txt_post_limit'] = isset( $input['llms_full_txt_post_limit'] )
+			? min( max( absint( $input['llms_full_txt_post_limit'] ), 1 ), 500 )
+			: $defaults['llms_full_txt_post_limit'];
+
+		// Keep legacy key in sync for SitemapEndpoint compatibility.
+		$sanitized['llms_txt_post_limit'] = $sanitized['llms_full_txt_post_limit'];
 
 		// Protected teaser.
 		$sanitized['show_protected_teaser'] = ! empty( $input['show_protected_teaser'] );

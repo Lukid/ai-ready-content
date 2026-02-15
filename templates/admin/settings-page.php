@@ -65,5 +65,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<span class="screen-reader-text"><?php esc_html_e( '(opens in a new window)', 'ai-ready-content' ); ?></span>
 			</a>
 		</li>
+		<li>
+			<a href="<?php echo esc_url( home_url( '/llms-full.txt' ) ); ?>" target="_blank" rel="noopener noreferrer">
+				<?php esc_html_e( 'View llms-full.txt', 'ai-ready-content' ); ?> &rarr;
+				<span class="screen-reader-text"><?php esc_html_e( '(opens in a new window)', 'ai-ready-content' ); ?></span>
+			</a>
+		</li>
 	</ul>
 </div>

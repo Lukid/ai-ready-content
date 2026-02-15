@@ -61,6 +61,7 @@ class Commands {
 
 			delete_transient( 'airc_md_' . $post_id );
 			delete_transient( 'airc_llms_txt' );
+			delete_transient( 'airc_llms_full_txt' );
 			WP_CLI::success( sprintf( 'Cache flushed for post %d.', $post_id ) );
 			return;
 		}
@@ -86,6 +87,7 @@ class Commands {
 				++$count;
 			}
 			delete_transient( 'airc_llms_txt' );
+			delete_transient( 'airc_llms_full_txt' );
 			WP_CLI::success( sprintf( 'Cache flushed for %d posts of type "%s".', $count, $post_type ) );
 			return;
 		}

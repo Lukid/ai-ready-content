@@ -22,6 +22,7 @@ class RewriteHandler {
 	 */
 	public function add_rewrite_rules(): void {
 		add_rewrite_rule( '^llms\.txt$', 'index.php?airc_llms_txt=1', 'top' );
+		add_rewrite_rule( '^llms-full\.txt$', 'index.php?airc_llms_full_txt=1', 'top' );
 		add_rewrite_rule( '^airc-sitemap\.json$', 'index.php?airc_sitemap_json=1', 'top' );
 	}
 
@@ -31,6 +32,7 @@ class RewriteHandler {
 	public function register_query_vars( array $vars ): array {
 		$vars[] = 'airc_markdown';
 		$vars[] = 'airc_llms_txt';
+		$vars[] = 'airc_llms_full_txt';
 		$vars[] = 'airc_sitemap_json';
 		return $vars;
 	}

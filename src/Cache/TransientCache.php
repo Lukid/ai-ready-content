@@ -49,6 +49,20 @@ class TransientCache {
 		}
 	}
 
+	public function get_llms_full_txt(): ?string {
+		$cached = get_transient( 'airc_llms_full_txt' );
+		return false !== $cached ? $cached : null;
+	}
+
+	public function set_llms_full_txt( string $content ): void {
+		$settings = Plugin::get_settings();
+		$ttl      = (int) ( $settings['cache_ttl'] ?? 86400 );
+
+		if ( $ttl > 0 ) {
+			set_transient( 'airc_llms_full_txt', $content, $ttl );
+		}
+	}
+
 	public function get_sitemap_json(): ?string {
 		$cached = get_transient( 'airc_sitemap_json' );
 		return false !== $cached ? $cached : null;
@@ -77,6 +91,7 @@ class TransientCache {
 
 		delete_transient( 'airc_md_' . $post_id );
 		delete_transient( 'airc_llms_txt' );
+		delete_transient( 'airc_llms_full_txt' );
 		delete_transient( 'airc_sitemap_json' );
 	}
 
@@ -86,6 +101,7 @@ class TransientCache {
 	public function invalidate_post_by_id( int $post_id ): void {
 		delete_transient( 'airc_md_' . $post_id );
 		delete_transient( 'airc_llms_txt' );
+		delete_transient( 'airc_llms_full_txt' );
 		delete_transient( 'airc_sitemap_json' );
 	}
 
@@ -108,6 +124,7 @@ class TransientCache {
 
 		delete_transient( 'airc_md_' . $object_id );
 		delete_transient( 'airc_llms_txt' );
+		delete_transient( 'airc_llms_full_txt' );
 		delete_transient( 'airc_sitemap_json' );
 	}
 
