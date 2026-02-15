@@ -65,51 +65,11 @@ class SettingsPage {
 		);
 
 		add_settings_field(
-			'enable_content_negotiation',
-			__( 'Content Negotiation', 'ai-ready-content' ),
-			[ $this, 'render_checkbox_field' ],
+			'feature_toggles',
+			__( 'Features', 'ai-ready-content' ),
+			[ $this, 'render_feature_toggles_field' ],
 			self::MENU_SLUG,
-			'airc_general',
-			[
-				'field' => 'enable_content_negotiation',
-				'label' => __( 'Serve markdown when Accept: text/markdown header is sent', 'ai-ready-content' ),
-			]
-		);
-
-		add_settings_field(
-			'enable_llms_txt',
-			__( 'llms.txt Endpoint', 'ai-ready-content' ),
-			[ $this, 'render_checkbox_field' ],
-			self::MENU_SLUG,
-			'airc_general',
-			[
-				'field' => 'enable_llms_txt',
-				'label' => __( 'Enable /llms.txt endpoint', 'ai-ready-content' ),
-			]
-		);
-
-		add_settings_field(
-			'enable_alternate_links',
-			__( 'Alternate Links', 'ai-ready-content' ),
-			[ $this, 'render_checkbox_field' ],
-			self::MENU_SLUG,
-			'airc_general',
-			[
-				'field' => 'enable_alternate_links',
-				'label' => __( 'Add link rel="alternate" tags in HTML head', 'ai-ready-content' ),
-			]
-		);
-
-		add_settings_field(
-			'enable_robots_txt',
-			__( 'robots.txt', 'ai-ready-content' ),
-			[ $this, 'render_checkbox_field' ],
-			self::MENU_SLUG,
-			'airc_general',
-			[
-				'field' => 'enable_robots_txt',
-				'label' => __( 'Add Llms-txt directive to robots.txt', 'ai-ready-content' ),
-			]
+			'airc_general'
 		);
 
 		add_settings_field(
@@ -142,6 +102,7 @@ class SettingsPage {
 		$enabled    = (array) $settings['enabled_post_types'];
 		$post_types = $this->helper->get_public_post_types();
 
+		echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Enabled Post Types', 'ai-ready-content' ) . '</legend>';
 		foreach ( $post_types as $slug => $type_obj ) {
 			printf(
 				'<label><input type="checkbox" name="%s[enabled_post_types][]" value="%s" %s /> %s</label><br />',
@@ -151,19 +112,30 @@ class SettingsPage {
 				esc_html( $type_obj->labels->name )
 			);
 		}
+		echo '</fieldset>';
 	}
 
-	public function render_checkbox_field( array $args ): void {
+	public function render_feature_toggles_field(): void {
 		$settings = Plugin::get_settings();
-		$value    = ! empty( $settings[ $args['field'] ] );
+		$toggles  = [
+			'enable_content_negotiation' => __( 'Content Negotiation', 'ai-ready-content' ),
+			'enable_llms_txt'            => __( 'llms.txt endpoint', 'ai-ready-content' ),
+			'enable_alternate_links'     => __( 'Alternate link headers', 'ai-ready-content' ),
+			'enable_robots_txt'          => __( 'Robots.txt integration', 'ai-ready-content' ),
+		];
 
-		printf(
-			'<label><input type="checkbox" name="%s[%s]" value="1" %s /> %s</label>',
-			esc_attr( self::OPTION_NAME ),
-			esc_attr( $args['field'] ),
-			checked( $value, true, false ),
-			esc_html( $args['label'] )
-		);
+		echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Features', 'ai-ready-content' ) . '</legend>';
+		foreach ( $toggles as $field => $label ) {
+			$value = ! empty( $settings[ $field ] );
+			printf(
+				'<label><input type="checkbox" name="%s[%s]" value="1" %s /> %s</label><br />',
+				esc_attr( self::OPTION_NAME ),
+				esc_attr( $field ),
+				checked( $value, true, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</fieldset>';
 	}
 
 	public function render_cache_ttl_field(): void {
@@ -172,9 +144,12 @@ class SettingsPage {
 		$hours    = $value / 3600;
 
 		printf(
-			'<input type="number" name="%s[cache_ttl]" value="%s" min="0" max="168" step="1" class="small-text" /> %s',
+			'<input type="number" name="%s[cache_ttl]" value="%s" min="0" max="168" step="1" class="small-text" aria-describedby="airc-cache-ttl-desc" />',
 			esc_attr( self::OPTION_NAME ),
-			esc_attr( (string) $hours ),
+			esc_attr( (string) $hours )
+		);
+		printf(
+			'<p id="airc-cache-ttl-desc" class="description">%s</p>',
 			esc_html__( 'hours (0 = disabled)', 'ai-ready-content' )
 		);
 	}
@@ -184,9 +159,12 @@ class SettingsPage {
 		$value    = (int) $settings['llms_txt_post_limit'];
 
 		printf(
-			'<input type="number" name="%s[llms_txt_post_limit]" value="%s" min="1" max="500" step="1" class="small-text" /> %s',
+			'<input type="number" name="%s[llms_txt_post_limit]" value="%s" min="1" max="500" step="1" class="small-text" aria-describedby="airc-post-limit-desc" />',
 			esc_attr( self::OPTION_NAME ),
-			esc_attr( (string) $value ),
+			esc_attr( (string) $value )
+		);
+		printf(
+			'<p id="airc-post-limit-desc" class="description">%s</p>',
 			esc_html__( 'posts per type', 'ai-ready-content' )
 		);
 	}

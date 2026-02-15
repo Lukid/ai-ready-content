@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<button type="button" id="airc-flush-cache" class="button button-secondary">
 			<?php esc_html_e( 'Clear All Cache', 'ai-ready-content' ); ?>
 		</button>
-		<span id="airc-flush-result"></span>
+		<span id="airc-flush-result" role="status" aria-live="polite" aria-atomic="true"></span>
 	</p>
 
 	<script>
