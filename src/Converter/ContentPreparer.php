@@ -33,6 +33,15 @@ class ContentPreparer {
 		// Apply the_content filters for full rendering (Gutenberg blocks, shortcodes, embeds).
 		$content = apply_filters( 'the_content', $content );
 
+		/**
+		 * Filters whether residual shortcodes should be stripped from the content.
+		 *
+		 * @param bool $strip Whether to strip residual shortcodes. Default true.
+		 */
+		if ( apply_filters( 'airc_strip_residual_shortcodes', true ) ) {
+			$content = $this->strip_residual_shortcodes( $content );
+		}
+
 		$content = $this->clean_html( $content );
 
 		self::$is_converting = false;
@@ -44,6 +53,21 @@ class ContentPreparer {
 		 * @param WP_Post $post    The source post.
 		 */
 		return apply_filters( 'airc_prepared_html', $content, $post );
+	}
+
+	/**
+	 * Remove residual shortcodes that were not resolved by the_content filters.
+	 *
+	 * Strips both self-closing [shortcode ...] and enclosing [shortcode ...]...[/shortcode] patterns.
+	 */
+	private function strip_residual_shortcodes( string $content ): string {
+		// Remove enclosing shortcodes: [tag ...]...[/tag].
+		$content = preg_replace( '/\[(\w+)\b[^\]]*\].*?\[\/\1\]/s', '', $content );
+
+		// Remove self-closing / opening shortcodes: [tag ...].
+		$content = preg_replace( '/\[\w+\b[^\]]*\]/', '', $content );
+
+		return $content;
 	}
 
 	/**
