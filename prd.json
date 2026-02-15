@@ -1,0 +1,201 @@
+{
+  "project": "AI-Ready Content",
+  "branchName": "develop",
+  "description": "Piano di miglioramento completo: accessibilità admin, sicurezza endpoint, nuove feature (preview, WP-CLI, gestione immagini, sitemap JSON)",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Accessibilità form admin settings",
+      "description": "As a screen reader user, I want checkbox groups, numeric fields and AJAX results to be semantically correct so I can use the settings page without barriers.",
+      "acceptanceCriteria": [
+        "Post type checkboxes are wrapped in <fieldset> with <legend class=\"screen-reader-text\">",
+        "Same fieldset/legend pattern applied to feature toggle checkboxes",
+        "Numeric fields (cache TTL, post limit) have <p id=\"...\" class=\"description\"> linked via aria-describedby",
+        "<span id=\"airc-flush-result\"> has role=\"status\", aria-live=\"polite\" and aria-atomic=\"true\"",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Files: src/Admin/SettingsPage.php, templates/admin/settings-page.php. Grouped from improvement plan items 1.1 + 1.2 + 1.3."
+    },
+    {
+      "id": "US-002",
+      "title": "Sanitizzazione input e validazione output",
+      "description": "As a developer, I want all superglobal inputs and filter values to be sanitized so the plugin is not vulnerable to header injection or unsanitized input.",
+      "acceptanceCriteria": [
+        "In PostEndpoint.php, headers from airc_response_headers are validated: name contains only alphanumeric chars and hyphens, value contains no \\r or \\n; invalid headers are silently discarded",
+        "In ContentNegotiator.php, $_SERVER['HTTP_ACCEPT'] is passed through sanitize_text_field( wp_unslash( ... ) )",
+        "In RewriteHandler.php, $_SERVER['REQUEST_URI'] is passed through esc_url_raw( wp_unslash( ... ) )",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Files: src/Endpoint/PostEndpoint.php, src/Router/ContentNegotiator.php, src/Router/RewriteHandler.php. Grouped from improvement plan items 2.1 + 2.2."
+    },
+    {
+      "id": "US-003",
+      "title": "Rimozione shortcode residui dal markdown",
+      "description": "As an AI consumer, I want the markdown to not contain unresolved shortcodes so the content is clean and usable.",
+      "acceptanceCriteria": [
+        "After the_content, residual [shortcode ...]...[/shortcode] and [shortcode ...] patterns are removed",
+        "Filter airc_strip_residual_shortcodes (bool, default true) allows disabling the cleanup",
+        "Legitimate shortcodes already resolved to HTML are not affected",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "File: src/Converter/ContentPreparer.php. From improvement plan item 3.2."
+    },
+    {
+      "id": "US-004",
+      "title": "Accessibilità elementi interattivi e navigazione",
+      "description": "As a screen reader user, I want external links, the flush button loading state and heading hierarchy to be correct so I can navigate the settings page without confusion.",
+      "acceptanceCriteria": [
+        "The 'View llms.txt' link (and any other target=\"_blank\" links) has an accessible warning '(opens in a new window)' via aria-label or <span class=\"screen-reader-text\">",
+        "The flush cache button shows aria-busy=\"true\" during AJAX request and removes it on completion",
+        "A screen-reader-only text appears during loading (e.g. 'Flushing cache...')",
+        "The Test Endpoints section has an <h2> consistent with the page heading hierarchy",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "File: templates/admin/settings-page.php. Grouped from improvement plan items 1.4 + 1.5 + 1.6."
+    },
+    {
+      "id": "US-005",
+      "title": "Preview meta box nell'editor classico",
+      "description": "As an admin, I want to see the markdown preview and cache status from the classic editor so I don't have to manually visit the .md URL.",
+      "acceptanceCriteria": [
+        "A new PreviewMetaBox class is registered in Plugin.php",
+        "Meta box appears in the classic editor for enabled post types",
+        "Meta box shows: direct link to the .md endpoint, cache status (present/absent, age)",
+        "Meta box has a button to invalidate the single post cache via AJAX",
+        "A readonly textarea shows the markdown preview (loaded via AJAX lazy-load)",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "New file: src/Admin/PreviewMetaBox.php. Also modifies src/Plugin.php. From improvement plan item 3.1 (classic editor part)."
+    },
+    {
+      "id": "US-006",
+      "title": "Preview panel sidebar Gutenberg",
+      "description": "As an admin using the block editor, I want a sidebar panel replicating the markdown preview and cache status available in the classic editor.",
+      "acceptanceCriteria": [
+        "A JavaScript file registers a PluginDocumentSettingPanel (or PluginSidebar) for enabled post types",
+        "The panel shows: direct link to the .md endpoint, cache status, invalidate cache button",
+        "The JS file is enqueued only on the block editor for enabled post types",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Depends on US-005 (reuses AJAX endpoints). From improvement plan item 3.1 (Gutenberg part)."
+    },
+    {
+      "id": "US-007",
+      "title": "Cache TTL llms.txt configurabile",
+      "description": "As an admin, I want the llms.txt cache TTL to use the same configured value as single posts so the behavior is consistent.",
+      "acceptanceCriteria": [
+        "The hardcoded 12-hour value in LlmsTxtEndpoint.php is removed",
+        "TTL uses the cache_ttl value from plugin settings",
+        "If cache_ttl is 0 (cache disabled), llms.txt is also not cached",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "File: src/Endpoint/LlmsTxtEndpoint.php. From improvement plan item 3.4."
+    },
+    {
+      "id": "US-008",
+      "title": "Supporto custom fields nel frontmatter",
+      "description": "As an admin with ACF or custom meta, I want to specify which meta keys to include in the YAML frontmatter so structured data is available to AI consumers without custom code.",
+      "acceptanceCriteria": [
+        "A textarea field 'Meta keys for frontmatter' appears in settings (one key per line)",
+        "In FrontmatterGenerator, configured meta keys are read and included in frontmatter if they have a non-empty value",
+        "Non-existent or empty-value meta keys are silently ignored",
+        "The airc_frontmatter_fields filter still works and applies after custom fields are added",
+        "Input is sanitized (one key per line, trimmed, valid meta key characters)",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Files: src/Converter/FrontmatterGenerator.php, src/Admin/SettingsPage.php. From improvement plan item 3.3."
+    },
+    {
+      "id": "US-009",
+      "title": "Gestione immagini nel markdown",
+      "description": "As an admin, I want to control how images are handled in markdown conversion because depending on context they can be noise or useful information for AI.",
+      "acceptanceCriteria": [
+        "A select field 'Image handling' appears in settings with three options: 'Keep with alt text' (default), 'Alt text only', 'Remove'",
+        "Keep mode: ![alt](url) preserved (current behavior)",
+        "Alt text only mode: images replaced with their alt text in parentheses",
+        "Remove mode: images completely removed from output",
+        "<figure> with <figcaption> preserves the caption as text in all modes",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "Files: src/Converter/ContentPreparer.php, src/Admin/SettingsPage.php. From improvement plan item 3.5."
+    },
+    {
+      "id": "US-010",
+      "title": "Comandi WP-CLI",
+      "description": "As an admin of a site with thousands of posts, I want WP-CLI commands to manage cache and markdown generation from the terminal.",
+      "acceptanceCriteria": [
+        "wp airc flush clears all cache; supports --post_id=<id> and --post_type=<type>",
+        "wp airc generate pre-generates markdown for all enabled posts; supports --post_type=<type> and --force",
+        "wp airc status shows: number of enabled posts, cache entries, total cache size",
+        "Commands are registered only if WP_CLI constant is defined",
+        "Each command shows progressive output with WP_CLI::log() and confirms with WP_CLI::success()",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "New file: src/CLI/Commands.php. Also modifies src/Plugin.php. From improvement plan item 3.6."
+    },
+    {
+      "id": "US-011",
+      "title": "Hardening endpoint con rate limiting e CSP",
+      "description": "As a developer, I want endpoints protected by rate limiting on cache flush and CSP headers so the plugin is resilient to abuse and XSS attempts.",
+      "acceptanceCriteria": [
+        "AJAX flush cache sets a transient cooldown (10 seconds) after each successful flush",
+        "Flush requests during cooldown return JSON error with appropriate message",
+        "Markdown endpoints (PostEndpoint, LlmsTxtEndpoint) include Content-Security-Policy: default-src 'none' header",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": "Files: src/Admin/SettingsPage.php, src/Endpoint/PostEndpoint.php, src/Endpoint/LlmsTxtEndpoint.php. Grouped from improvement plan items 2.3 + 2.4."
+    },
+    {
+      "id": "US-012",
+      "title": "Sitemap JSON endpoint",
+      "description": "As an AI agent or crawler, I want a machine-readable endpoint to discover all available markdown content so I can index the site programmatically.",
+      "acceptanceCriteria": [
+        "Endpoint /airc-sitemap.json returns JSON with list of enabled posts",
+        "Each entry includes: title, markdown URL, publish date, post type, last modified date",
+        "Endpoint respects enabled post types from settings",
+        "Response includes Content-Type: application/json and appropriate cache headers",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "New file: src/Endpoint/SitemapEndpoint.php. Also modifies src/Router/RewriteHandler.php and src/Plugin.php. From improvement plan item 3.7."
+    },
+    {
+      "id": "US-013",
+      "title": "Teaser markdown per post protetti da password",
+      "description": "As an AI agent, I want to know that a post exists but is password-protected instead of getting a 404 so I can index the content's existence.",
+      "acceptanceCriteria": [
+        "A password-protected post returns frontmatter (title, date, type) and body 'Contenuto protetto da password' instead of 404",
+        "A toggle 'Show teaser for protected posts' appears in settings (default: off)",
+        "If toggle is off, behavior remains 404",
+        "Response code is 200 when teaser is active",
+        "PHPCS/lint passes without errors"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": "Files: src/Endpoint/PostEndpoint.php, src/Admin/SettingsPage.php. From improvement plan item 3.8."
+    }
+  ]
+}

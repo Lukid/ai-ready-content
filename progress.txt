@@ -1,0 +1,105 @@
+## Codebase Patterns
+- PSR-4 autoloading: `AIRC\` namespace maps to `src/`, PascalCase file names
+- Settings stored in `airc_settings` option as array; defaults in `Plugin::get_defaults()`
+- Settings fields rendered via dedicated `render_*_field()` methods in `SettingsPage`
+- All user-facing strings use `__()` / `esc_html__()` with text domain `ai-ready-content`
+- PHPCS WordPress standard has pre-existing errors due to PSR-4 naming; `php -l` is the reliable lint check
+- Feature toggles are boolean keys in settings (e.g., `enable_content_negotiation`, `enable_llms_txt`)
+- Superglobal sanitization: always `wp_unslash()` first, then `sanitize_text_field()` for text or `esc_url_raw()` for URLs
+- Header validation: name `/^[a-zA-Z0-9\-]+$/`, value no `\r`/`\n` — apply to any user-filterable headers
+- Content pipeline order in `ContentPreparer::prepare()`: `the_content` → `strip_residual_shortcodes` → `clean_html` → `airc_prepared_html` filter
+- AJAX endpoints use `check_ajax_referer()` with post-specific nonce (`airc_preview_{post_id}`) and `current_user_can( 'edit_post', $post_id )` for authorization
+- Meta box JS is enqueued via `wp_localize_script()` for config/i18n, enqueued only on `post.php` / `post-new.php` for enabled post types
+- Markdown generation can be reused from converter components: `$preparer->prepare()` → `$converter->convert()` → `$frontmatter->generate()`, same pipeline as PostEndpoint
+- Gutenberg scripts use `enqueue_block_editor_assets` hook with WP script deps (`wp-plugins`, `wp-edit-post`, etc.); localize via `wp_localize_script()`
+
+## 2026-02-15 - US-001
+- Implemented accessibility improvements for admin settings form
+- Files changed: `src/Admin/SettingsPage.php`, `templates/admin/settings-page.php`
+- Changes:
+  - Added `<fieldset>` + `<legend class="screen-reader-text">` around post type checkboxes
+  - Created `render_feature_toggles_field()` method grouping all 4 feature toggles in a single fieldset with screen-reader legend (replaced individual `render_checkbox_field` calls)
+  - Added `aria-describedby` and `<p class="description">` for both numeric fields (cache TTL already had it partially, post limit was missing it)
+  - Added `role="status"`, `aria-live="polite"`, `aria-atomic="true"` to flush cache result span
+- **Learnings for future iterations:**
+  - The original code had `render_checkbox_field()` as a generic method and 4 separate `add_settings_field` calls — this was consolidated into `render_feature_toggles_field()` for proper fieldset grouping
+  - PHPCS global install has compatibility issues with PHP 8.x (trim() null deprecation); use `php -l` for reliable syntax checks
+  - Template file is at `templates/admin/settings-page.php` (not in src/Admin/)
+---
+
+## 2026-02-15 - US-002
+- Implemented input sanitization and output validation for security hardening
+- Files changed: `src/Endpoint/PostEndpoint.php`, `src/Router/ContentNegotiator.php`, `src/Router/RewriteHandler.php`
+- Changes:
+  - PostEndpoint: Added header name validation (alphanumeric + hyphens only) and header value validation (no CR/LF) in the `airc_response_headers` filter loop; invalid headers silently discarded
+  - ContentNegotiator: Sanitized `$_SERVER['HTTP_ACCEPT']` via `sanitize_text_field( wp_unslash( ... ) )`
+  - RewriteHandler: Sanitized `$_SERVER['REQUEST_URI']` via `esc_url_raw( wp_unslash( ... ) )`
+- **Learnings for future iterations:**
+  - WordPress security pattern: always `wp_unslash()` superglobals first, then sanitize with appropriate function (`sanitize_text_field` for general text, `esc_url_raw` for URLs)
+  - Header injection prevention: validate both name and value separately — name must match `/^[a-zA-Z0-9\-]+$/`, value must not contain `\r` or `\n`
+  - The `airc_response_headers` filter is the main attack surface for header injection since it allows external code to add arbitrary headers
+---
+
+## 2026-02-15 - US-003
+- Implemented residual shortcode stripping from markdown output
+- Files changed: `src/Converter/ContentPreparer.php`
+- Changes:
+  - Added `strip_residual_shortcodes()` private method that removes enclosing `[tag ...]...[/tag]` and self-closing `[tag ...]` patterns using regex
+  - Enclosing shortcodes are removed first (greedy match with `.*?` and `/s` flag), then self-closing ones
+  - Added `airc_strip_residual_shortcodes` filter (bool, default `true`) to allow disabling the cleanup
+  - Stripping runs after `the_content` filters (so legitimate shortcodes are already resolved to HTML) and before `clean_html()`
+- **Learnings for future iterations:**
+  - Shortcode stripping must happen after `apply_filters( 'the_content', ... )` so registered shortcodes are already resolved to HTML and won't be affected
+  - Order matters: remove enclosing `[tag]...[/tag]` first, then self-closing `[tag]`, otherwise the opening tag of an enclosing shortcode gets stripped first leaving the closing tag orphaned
+  - The `\b` after `\w+` in the regex prevents matching things like `[123]` or `[a]` which are unlikely to be shortcodes but could be footnote references
+---
+
+## 2026-02-15 - US-004
+- Implemented accessibility improvements for interactive elements and navigation
+- Files changed: `templates/admin/settings-page.php`
+- Changes:
+  - Added `<span class="screen-reader-text">(opens in a new window)</span>` to the "View llms.txt" link (target="_blank") plus `rel="noopener noreferrer"`
+  - Added `aria-busy="true"` to flush cache button during AJAX request, removed on completion/failure
+  - Added screen-reader loading text "Flushing cache…" shown in the `aria-live` region during AJAX request
+  - Heading hierarchy verified: `<h1>` (page title) → `<h2>` (Cache, Quick Links) is already correct and consistent
+- **Learnings for future iterations:**
+  - For `target="_blank"` links: always add both `rel="noopener noreferrer"` (security) and a screen-reader-text span with "(opens in a new window)" (accessibility)
+  - The `aria-live="polite"` region (`#airc-flush-result`) serves double duty: loading state text and result message — no need for a separate element
+  - `aria-busy` goes on the button (not the live region) to indicate the control is processing
+---
+
+## 2026-02-15 - US-005
+- Implemented markdown preview meta box for the classic editor
+- Files changed: `src/Admin/PreviewMetaBox.php` (new), `src/Plugin.php`, `assets/js/metabox.js` (new)
+- Changes:
+  - Created `PreviewMetaBox` class registered for all enabled post types via `add_meta_box()`
+  - Meta box shows: direct `.md` URL link, cache status (Cached/Not cached), Clear Cache button, Load Markdown Preview button with lazy-loaded readonly textarea
+  - Three AJAX endpoints: `airc_preview_markdown` (generates and returns markdown), `airc_invalidate_post_cache` (clears single post transient), `airc_post_cache_status` (checks cache state)
+  - All AJAX endpoints secured with post-specific nonce and `edit_post` capability check
+  - JavaScript (`metabox.js`) handles AJAX interactions with `aria-busy` states and localized i18n strings
+  - Registered `PreviewMetaBox` in `Plugin.php` `init_components()`, reusing existing converter component instances
+- **Learnings for future iterations:**
+  - The converter pipeline (`ContentPreparer` → `MarkdownConverter` → `FrontmatterGenerator`) is already instantiated in `Plugin::init_components()` and can be injected into new classes that need markdown generation
+  - For meta box AJAX, use post-specific nonces (`airc_preview_{post_id}`) rather than a global nonce for better security
+  - `wp_localize_script()` is used for both AJAX URL and i18n strings — keep all translatable JS strings server-side
+  - JS is only enqueued on `post.php` / `post-new.php` hooks for enabled post types to avoid loading on unrelated admin pages
+  - US-006 (Gutenberg sidebar) can reuse the same AJAX endpoints created here
+---
+
+## 2026-02-15 - US-006
+- Implemented Gutenberg sidebar panel for markdown preview and cache status
+- Files changed: `src/Admin/PreviewMetaBox.php` (modified), `assets/js/gutenberg-panel.js` (new)
+- Changes:
+  - Added `enqueue_block_editor_assets` hook in `PreviewMetaBox` constructor to register `enqueue_gutenberg_assets()` method
+  - `enqueue_gutenberg_assets()` checks current screen post type against enabled post types, only enqueues for matching types
+  - JS file registered with WP script dependencies: `wp-plugins`, `wp-edit-post`, `wp-element`, `wp-components`, `wp-data`
+  - Localized `aircGutenberg` config passes AJAX URL, post-specific nonce, enabled post types array, and i18n strings
+  - JS uses `wp.plugins.registerPlugin()` with `wp.editPost.PluginDocumentSettingPanel` to render sidebar panel
+  - Panel shows: markdown URL (via `ExternalLink` component), cache status (fetched on mount via AJAX), Clear Cache button
+  - Reuses same AJAX endpoints from US-005: `airc_post_cache_status`, `airc_invalidate_post_cache`
+- **Learnings for future iterations:**
+  - `enqueue_block_editor_assets` is the correct hook for Gutenberg-only scripts (not `admin_enqueue_scripts`)
+  - Gutenberg panel JS uses vanilla `wp.element.createElement()` — no JSX build step needed for simple panels
+  - For Gutenberg, the post type check is done both server-side (screen check in enqueue) and client-side (JS checks `aircGutenberg.enabledPostTypes`)
+  - Post ID for nonce comes from `$_GET['post']` (available on `post.php`); for new posts it's 0 and nonce is empty — panel gracefully handles this via `useEffect` guard on `postId`
+---

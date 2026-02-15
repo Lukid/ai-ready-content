@@ -1,6 +1,6 @@
 <?php
 /**
- * Meta box for markdown preview and cache status in the classic editor.
+ * Meta box for markdown preview in the classic editor and Gutenberg sidebar panel.
  */
 
 namespace AIRC\Admin;
@@ -26,6 +26,7 @@ class PreviewMetaBox {
 	) {
 		add_action( 'add_meta_boxes', [ $this, 'register_meta_box' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+		add_action( 'enqueue_block_editor_assets', [ $this, 'enqueue_gutenberg_assets' ] );
 		add_action( 'wp_ajax_airc_preview_markdown', [ $this, 'ajax_preview_markdown' ] );
 		add_action( 'wp_ajax_airc_invalidate_post_cache', [ $this, 'ajax_invalidate_post_cache' ] );
 		add_action( 'wp_ajax_airc_post_cache_status', [ $this, 'ajax_post_cache_status' ] );
@@ -129,6 +130,45 @@ class PreviewMetaBox {
 				'cached'     => __( 'Cached', 'ai-ready-content' ),
 				'error'      => __( 'Error occurred.', 'ai-ready-content' ),
 				'noContent'  => __( 'No content to preview. Save or publish the post first.', 'ai-ready-content' ),
+			],
+		] );
+	}
+
+	/**
+	 * Enqueue Gutenberg sidebar panel script for enabled post types.
+	 */
+	public function enqueue_gutenberg_assets(): void {
+		$screen = get_current_screen();
+		if ( ! $screen || ! in_array( $screen->post_type, $this->helper->get_enabled_post_types(), true ) ) {
+			return;
+		}
+
+		$post_id = 0;
+		if ( isset( $_GET['post'] ) ) {
+			$post_id = absint( $_GET['post'] );
+		}
+
+		wp_enqueue_script(
+			'airc-gutenberg-panel',
+			AIRC_PLUGIN_URL . 'assets/js/gutenberg-panel.js',
+			[ 'wp-plugins', 'wp-edit-post', 'wp-element', 'wp-components', 'wp-data' ],
+			AIRC_VERSION,
+			true
+		);
+
+		wp_localize_script( 'airc-gutenberg-panel', 'aircGutenberg', [
+			'ajaxurl'          => admin_url( 'admin-ajax.php' ),
+			'nonce'            => $post_id ? wp_create_nonce( 'airc_preview_' . $post_id ) : '',
+			'enabledPostTypes' => $this->helper->get_enabled_post_types(),
+			'i18n'             => [
+				'markdownUrl'  => __( 'Markdown URL:', 'ai-ready-content' ),
+				'publishFirst' => __( 'Publish the post to generate the markdown URL.', 'ai-ready-content' ),
+				'cache'        => __( 'Cache:', 'ai-ready-content' ),
+				'cached'       => __( 'Cached', 'ai-ready-content' ),
+				'notCached'    => __( 'Not cached', 'ai-ready-content' ),
+				'clearCache'   => __( 'Clear Cache', 'ai-ready-content' ),
+				'cleared'      => __( 'Cache cleared.', 'ai-ready-content' ),
+				'error'        => __( 'Error occurred.', 'ai-ready-content' ),
 			],
 		] );
 	}
