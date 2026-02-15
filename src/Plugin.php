@@ -18,6 +18,7 @@ use AIRC\Converter\FrontmatterGenerator;
 use AIRC\Converter\MarkdownConverter;
 use AIRC\Endpoint\LlmsTxtEndpoint;
 use AIRC\Endpoint\PostEndpoint;
+use AIRC\Endpoint\SitemapEndpoint;
 use AIRC\Helpers\PostTypeHelper;
 use AIRC\Integration\AlternateLink;
 use AIRC\Integration\RobotsTxt;
@@ -51,6 +52,7 @@ final class Plugin {
 		new RewriteHandler();
 		new ContentNegotiator( $post_endpoint, $helper );
 		new LlmsTxtEndpoint( $helper, $cache );
+		new SitemapEndpoint( $helper, $cache );
 		new AlternateLink( $helper );
 		new RobotsTxt();
 

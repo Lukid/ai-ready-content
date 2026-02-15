@@ -16,6 +16,8 @@
 - Image/HTML element processing should happen in `ContentPreparer` (HTML level) before markdown conversion, not after — regex on markdown output is fragile
 - WP-CLI commands: guard with `defined( 'WP_CLI' ) && WP_CLI`, register via `WP_CLI::add_command()` with class instance, use phpdoc `## OPTIONS`/`## EXAMPLES` for help text
 - Rate limiting AJAX: use `get_transient( 'airc_flush_cooldown' )` check before action, `set_transient( ..., 1, 10 )` after — return HTTP 429 during cooldown
+- New endpoints: register on `template_redirect` priority 1, check query var, add rewrite rule + query var in `RewriteHandler`, register in `Plugin::init_components()`
+- Cache invalidation: when adding new aggregate endpoints (like sitemap), add `delete_transient()` calls to all existing invalidation hooks in `TransientCache`
 
 ## 2026-02-15 - US-001
 - Implemented accessibility improvements for admin settings form
@@ -185,4 +187,25 @@
   - Both flush endpoints (settings page global flush and meta box per-post flush) share the same cooldown transient to prevent abuse across either path
   - CSP `default-src 'none'` is the strictest policy — appropriate for non-HTML endpoints (markdown, plain text) since no scripts/styles/images should load
   - PostEndpoint CSP goes in the `$headers` array (filterable via `airc_response_headers`), while LlmsTxtEndpoint uses direct `header()` calls — different patterns because LlmsTxtEndpoint doesn't use the filter system for its headers
+---
+
+## 2026-02-15 - US-012
+- Implemented JSON sitemap endpoint at `/airc-sitemap.json`
+- Files changed: `src/Endpoint/SitemapEndpoint.php` (new), `src/Cache/TransientCache.php`, `src/Router/RewriteHandler.php`, `src/Plugin.php`
+- Changes:
+  - Created `SitemapEndpoint` class following the same pattern as `LlmsTxtEndpoint` — constructor registers on `template_redirect`, `handle()` checks query var, generates or serves from cache
+  - Endpoint returns JSON with: `generated` timestamp, `site` name, `count`, and `posts` array
+  - Each post entry includes: `title`, `url` (markdown URL), `post_type`, `date_published`, `date_modified` (both ISO 8601)
+  - Respects enabled post types and `llms_txt_post_limit` setting for consistency with llms.txt
+  - Added `get_sitemap_json()` / `set_sitemap_json()` cache methods to `TransientCache`, following same TTL pattern
+  - Added `airc_sitemap_json` transient invalidation to all cache invalidation hooks (save_post, delete_post, terms change)
+  - Added rewrite rule `^airc-sitemap\.json$` and `airc_sitemap_json` query var in `RewriteHandler`
+  - Registered `SitemapEndpoint` in `Plugin::init_components()`
+  - Response headers: `Content-Type: application/json`, `X-Robots-Tag: noindex`, `X-Content-Type-Options: nosniff`, CSP `default-src 'none'`, `Cache-Control: public, max-age=3600`
+- **Learnings for future iterations:**
+  - New endpoints follow a consistent pattern: register on `template_redirect` at priority 1, check query var, serve from cache or generate
+  - Rewrite rules need three changes: `add_rewrite_rule()` in `RewriteHandler`, query var registration, and `SitemapEndpoint` registration in `Plugin.php`
+  - After adding a new rewrite rule, WordPress needs `flush_rewrite_rules()` — this already happens on plugin activation via `Plugin::activate()`
+  - `wp_json_encode()` is the WordPress wrapper for `json_encode()` — use it instead of raw `json_encode()` for consistency
+  - Sitemap cache invalidation must be added to all the same hooks as llms.txt (save_post, delete_post, terms change) since the sitemap reflects the same post data
 ---

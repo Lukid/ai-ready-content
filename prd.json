@@ -179,7 +179,7 @@
         "PHPCS/lint passes without errors"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": "New file: src/Endpoint/SitemapEndpoint.php. Also modifies src/Router/RewriteHandler.php and src/Plugin.php. From improvement plan item 3.7."
     },
     {
