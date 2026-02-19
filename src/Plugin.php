@@ -23,6 +23,7 @@ use AIRC\Endpoint\SitemapEndpoint;
 use AIRC\Helpers\PostTypeHelper;
 use AIRC\Integration\AlternateLink;
 use AIRC\Integration\RobotsTxt;
+use AIRC\Integration\ShareButton;
 use AIRC\Router\ContentNegotiator;
 use AIRC\Router\RewriteHandler;
 
@@ -64,6 +65,7 @@ final class Plugin {
 		new LlmsFullTxtEndpoint( $helper, $cache );
 		new SitemapEndpoint( $helper, $cache );
 		new AlternateLink( $helper );
+		new ShareButton( $helper );
 		new RobotsTxt();
 
 		if ( is_admin() ) {
@@ -104,6 +106,11 @@ final class Plugin {
 			'frontmatter_meta_keys'      => '',
 			'image_handling'             => 'keep',
 			'show_protected_teaser'      => false,
+			'enable_share_button'        => false,
+			'share_button_position'      => 'bottom-right',
+			'share_button_label'         => '',
+			'share_services'             => [ 'markdown', 'chatgpt', 'claude', 'perplexity' ],
+			'share_prompt_template'      => 'Read and summarize the following page: {url}',
 		];
 	}
 

@@ -1,0 +1,270 @@
+/**
+ * Share with AI - Floating button & dropdown.
+ * All selectors scoped under #airc-share-widget to avoid theme conflicts.
+ */
+
+#airc-share-widget {
+	/* Color tokens (shadcn zinc palette) */
+	--airc-bg: #ffffff;
+	--airc-bg-hover: #f4f4f5;
+	--airc-fg: #18181b;
+	--airc-fg-muted: #71717a;
+	--airc-border: #e4e4e7;
+	--airc-ring: #a1a1aa;
+	--airc-primary: #18181b;
+	--airc-primary-fg: #fafafa;
+	--airc-radius: 0.5rem;
+	--airc-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+	--airc-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+	/* Layout */
+	position: fixed;
+	z-index: 9999;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	font-size: 14px;
+	line-height: 1.5;
+	direction: ltr;
+}
+
+#airc-share-widget *,
+#airc-share-widget *::before,
+#airc-share-widget *::after {
+	box-sizing: border-box;
+}
+
+/* Positioning */
+#airc-share-widget[data-position="bottom-right"] {
+	bottom: 1.5rem;
+	right: 1.5rem;
+}
+
+#airc-share-widget[data-position="bottom-left"] {
+	bottom: 1.5rem;
+	left: 1.5rem;
+}
+
+/* WP admin bar offset */
+.admin-bar #airc-share-widget {
+	bottom: calc(1.5rem + 32px);
+}
+
+@media screen and (max-width: 782px) {
+	.admin-bar #airc-share-widget {
+		bottom: calc(1.5rem + 46px);
+	}
+}
+
+/* ---------- FAB Button ---------- */
+
+.airc-share-fab {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 0.875rem;
+	background: var(--airc-primary);
+	color: var(--airc-primary-fg);
+	border: none;
+	border-radius: var(--airc-radius);
+	cursor: pointer;
+	box-shadow: var(--airc-shadow);
+	transition: background 150ms ease, box-shadow 150ms ease;
+	/* Reset theme styles */
+	appearance: none;
+	-webkit-appearance: none;
+	text-decoration: none;
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	letter-spacing: 0;
+	text-transform: none;
+	line-height: 1.5;
+	margin: 0;
+	outline: none;
+}
+
+.airc-share-fab:hover {
+	background: #27272a;
+	box-shadow: var(--airc-shadow-lg);
+}
+
+.airc-share-fab:focus-visible {
+	outline: 2px solid var(--airc-ring);
+	outline-offset: 2px;
+}
+
+.airc-share-fab svg {
+	flex-shrink: 0;
+}
+
+.airc-share-chevron {
+	transition: transform 200ms ease;
+}
+
+.airc-share-fab[aria-expanded="true"] .airc-share-chevron {
+	transform: rotate(180deg);
+}
+
+/* ---------- Dropdown Menu ---------- */
+
+.airc-share-menu {
+	position: absolute;
+	bottom: calc(100% + 0.5rem);
+	right: 0;
+	min-width: 220px;
+	background: var(--airc-bg);
+	border: 1px solid var(--airc-border);
+	border-radius: var(--airc-radius);
+	box-shadow: var(--airc-shadow-lg);
+	padding: 0.25rem;
+	opacity: 0;
+	transform: translateY(4px) scale(0.96);
+	transition: opacity 150ms ease, transform 150ms ease;
+	pointer-events: none;
+}
+
+#airc-share-widget[data-position="bottom-left"] .airc-share-menu {
+	right: auto;
+	left: 0;
+}
+
+.airc-share-menu.airc-share-menu--open {
+	opacity: 1;
+	transform: translateY(0) scale(1);
+	pointer-events: auto;
+}
+
+/* ---------- Menu Items ---------- */
+
+#airc-share-widget .airc-share-item,
+#airc-share-widget .airc-share-item:link,
+#airc-share-widget .airc-share-item:visited {
+	display: flex;
+	align-items: center;
+	gap: 0.625rem;
+	padding: 0.5rem 0.625rem;
+	color: var(--airc-fg) !important;
+	text-decoration: none !important;
+	border-radius: calc(var(--airc-radius) - 2px);
+	transition: background 100ms ease;
+	white-space: nowrap;
+	/* Reset theme link styles */
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 400;
+	line-height: 1.5;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	margin: 0;
+	width: 100%;
+	text-align: left;
+}
+
+#airc-share-widget .airc-share-item:hover,
+#airc-share-widget .airc-share-item:focus,
+#airc-share-widget .airc-share-item:active {
+	background: var(--airc-bg-hover);
+	color: var(--airc-fg) !important;
+	text-decoration: none !important;
+	outline: none;
+}
+
+#airc-share-widget .airc-share-item:focus-visible {
+	outline: 2px solid var(--airc-ring);
+	outline-offset: -2px;
+}
+
+#airc-share-widget .airc-share-item span {
+	color: inherit !important;
+}
+
+#airc-share-widget .airc-share-item svg {
+	flex-shrink: 0;
+	color: var(--airc-fg-muted);
+}
+
+#airc-share-widget .airc-share-item:hover svg {
+	color: var(--airc-fg);
+}
+
+/* ---------- Toast ---------- */
+
+.airc-share-toast {
+	position: absolute;
+	bottom: calc(100% + 0.5rem);
+	right: 0;
+	padding: 0.5rem 0.75rem;
+	background: var(--airc-primary);
+	color: var(--airc-primary-fg);
+	border-radius: var(--airc-radius);
+	font-family: inherit;
+	font-size: 12px;
+	white-space: nowrap;
+	opacity: 0;
+	transform: translateY(4px);
+	transition: opacity 200ms ease, transform 200ms ease;
+	pointer-events: none;
+}
+
+#airc-share-widget[data-position="bottom-left"] .airc-share-toast {
+	right: auto;
+	left: 0;
+}
+
+.airc-share-toast.airc-share-toast--visible {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+/* ---------- Dark Mode ---------- */
+
+@media (prefers-color-scheme: dark) {
+	#airc-share-widget {
+		--airc-bg: #27272a;
+		--airc-bg-hover: #3f3f46;
+		--airc-fg: #fafafa;
+		--airc-fg-muted: #a1a1aa;
+		--airc-border: #3f3f46;
+		--airc-primary: #fafafa;
+		--airc-primary-fg: #18181b;
+	}
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 480px) {
+	#airc-share-widget[data-position="bottom-right"] {
+		right: 1rem;
+		bottom: 1rem;
+	}
+
+	#airc-share-widget[data-position="bottom-left"] {
+		left: 1rem;
+		bottom: 1rem;
+	}
+
+	.airc-share-fab-label {
+		display: none;
+	}
+
+	.airc-share-fab .airc-share-chevron {
+		display: none;
+	}
+
+	.airc-share-fab {
+		padding: 0.75rem;
+		border-radius: 50%;
+	}
+}
+
+/* ---------- Reduced Motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+	.airc-share-menu,
+	.airc-share-fab,
+	.airc-share-item,
+	.airc-share-toast,
+	.airc-share-chevron {
+		transition: none !important;
+	}
+}

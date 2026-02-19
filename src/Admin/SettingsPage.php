@@ -143,6 +143,46 @@ class SettingsPage {
 			self::MENU_SLUG,
 			'airc_llms_txt'
 		);
+
+		// Share with AI Button section.
+		add_settings_section(
+			'airc_share_button',
+			__( 'Share with AI Button', 'ai-ready-content' ),
+			'__return_null',
+			self::MENU_SLUG
+		);
+
+		add_settings_field(
+			'share_button_position',
+			__( 'Button position', 'ai-ready-content' ),
+			[ $this, 'render_share_position_field' ],
+			self::MENU_SLUG,
+			'airc_share_button'
+		);
+
+		add_settings_field(
+			'share_button_label',
+			__( 'Button label', 'ai-ready-content' ),
+			[ $this, 'render_share_label_field' ],
+			self::MENU_SLUG,
+			'airc_share_button'
+		);
+
+		add_settings_field(
+			'share_services',
+			__( 'Enabled services', 'ai-ready-content' ),
+			[ $this, 'render_share_services_field' ],
+			self::MENU_SLUG,
+			'airc_share_button'
+		);
+
+		add_settings_field(
+			'share_prompt_template',
+			__( 'Prompt template', 'ai-ready-content' ),
+			[ $this, 'render_share_prompt_field' ],
+			self::MENU_SLUG,
+			'airc_share_button'
+		);
 	}
 
 	public function render_page(): void {
@@ -179,6 +219,7 @@ class SettingsPage {
 			'enable_llms_full_txt'       => __( 'llms-full.txt endpoint', 'ai-ready-content' ),
 			'enable_alternate_links'     => __( 'Alternate link headers', 'ai-ready-content' ),
 			'enable_robots_txt'          => __( 'Robots.txt integration', 'ai-ready-content' ),
+			'enable_share_button'        => __( 'Share with AI button (frontend)', 'ai-ready-content' ),
 		];
 
 		echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Features', 'ai-ready-content' ) . '</legend>';
@@ -327,6 +368,83 @@ class SettingsPage {
 		);
 	}
 
+	public function render_share_position_field(): void {
+		$settings = Plugin::get_settings();
+		$value    = $settings['share_button_position'];
+		$options  = [
+			'bottom-right' => __( 'Bottom right', 'ai-ready-content' ),
+			'bottom-left'  => __( 'Bottom left', 'ai-ready-content' ),
+		];
+
+		printf(
+			'<select name="%s[share_button_position]">',
+			esc_attr( self::OPTION_NAME )
+		);
+		foreach ( $options as $key => $label ) {
+			printf(
+				'<option value="%s" %s>%s</option>',
+				esc_attr( $key ),
+				selected( $value, $key, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</select>';
+	}
+
+	public function render_share_label_field(): void {
+		$settings = Plugin::get_settings();
+		$value    = $settings['share_button_label'];
+
+		printf(
+			'<input type="text" name="%s[share_button_label]" value="%s" class="regular-text" placeholder="%s" aria-describedby="airc-share-label-desc" />',
+			esc_attr( self::OPTION_NAME ),
+			esc_attr( $value ),
+			esc_attr__( 'Share with AI', 'ai-ready-content' )
+		);
+		printf(
+			'<p id="airc-share-label-desc" class="description">%s</p>',
+			esc_html__( 'Leave empty for default label.', 'ai-ready-content' )
+		);
+	}
+
+	public function render_share_services_field(): void {
+		$settings = Plugin::get_settings();
+		$enabled  = (array) $settings['share_services'];
+		$all      = [
+			'markdown'   => __( 'View as Markdown', 'ai-ready-content' ),
+			'chatgpt'    => 'ChatGPT',
+			'claude'     => 'Claude',
+			'perplexity' => 'Perplexity',
+		];
+
+		echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Enabled services', 'ai-ready-content' ) . '</legend>';
+		foreach ( $all as $slug => $label ) {
+			printf(
+				'<label><input type="checkbox" name="%s[share_services][]" value="%s" %s /> %s</label><br />',
+				esc_attr( self::OPTION_NAME ),
+				esc_attr( $slug ),
+				checked( in_array( $slug, $enabled, true ), true, false ),
+				esc_html( $label )
+			);
+		}
+		echo '</fieldset>';
+	}
+
+	public function render_share_prompt_field(): void {
+		$settings = Plugin::get_settings();
+		$value    = $settings['share_prompt_template'];
+
+		printf(
+			'<textarea name="%s[share_prompt_template]" rows="3" cols="50" class="large-text code" aria-describedby="airc-share-prompt-desc">%s</textarea>',
+			esc_attr( self::OPTION_NAME ),
+			esc_textarea( $value )
+		);
+		printf(
+			'<p id="airc-share-prompt-desc" class="description">%s</p>',
+			esc_html__( 'Use {url} for the markdown URL and {title} for the post title.', 'ai-ready-content' )
+		);
+	}
+
 	/**
 	 * Sanitize and validate all settings input.
 	 */
@@ -397,6 +515,30 @@ class SettingsPage {
 			}
 			$sanitized['frontmatter_meta_keys'] = implode( "\n", $valid );
 		}
+
+		// Share button.
+		$sanitized['enable_share_button'] = ! empty( $input['enable_share_button'] );
+
+		$valid_positions                    = [ 'bottom-right', 'bottom-left' ];
+		$sanitized['share_button_position'] = isset( $input['share_button_position'] ) && in_array( $input['share_button_position'], $valid_positions, true )
+			? $input['share_button_position']
+			: $defaults['share_button_position'];
+
+		$sanitized['share_button_label'] = isset( $input['share_button_label'] )
+			? mb_substr( sanitize_text_field( $input['share_button_label'] ), 0, 50 )
+			: '';
+
+		$valid_services              = [ 'markdown', 'chatgpt', 'claude', 'perplexity' ];
+		$sanitized['share_services'] = [];
+		if ( ! empty( $input['share_services'] ) && is_array( $input['share_services'] ) ) {
+			$sanitized['share_services'] = array_values(
+				array_intersect( $input['share_services'], $valid_services )
+			);
+		}
+
+		$sanitized['share_prompt_template'] = isset( $input['share_prompt_template'] )
+			? sanitize_textarea_field( $input['share_prompt_template'] )
+			: $defaults['share_prompt_template'];
 
 		// Flush cache on settings save.
 		$this->cache->flush_all();
